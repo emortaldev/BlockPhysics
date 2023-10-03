@@ -1,12 +1,5 @@
 package dev.emortal;
 
-import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.Quaternion;
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.physics.bullet.collision.btBoxShape;
-import com.badlogic.gdx.physics.bullet.collision.btCollisionObject;
-import com.badlogic.gdx.physics.bullet.collision.btCollisionShape;
-import com.badlogic.gdx.physics.bullet.dynamics.btRigidBody;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -16,106 +9,82 @@ import net.minestom.server.entity.metadata.display.ItemDisplayMeta;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
+import physx.common.PxIDENTITYEnum;
+import physx.common.PxQuat;
+import physx.common.PxTransform;
+import physx.common.PxVec3;
+import physx.geometry.PxBoxGeometry;
+import physx.physics.*;
 
 public class BlockRigidBody {
 
-    private final btCollisionShape boxShape;
-    private final btCollisionObject boxObject;
-    private final btRigidBody rigidBody;
-
-    private final Vector3 size;
+    private final Point size;
     private Entity entity = null;
     private ItemDisplayMeta meta = null;
 
-    public BlockRigidBody(Instance instance, Vector3 translation, Vector3 size, float mass, boolean visible, Block block) {
+    private final PxRigidDynamic box;
+
+    public BlockRigidBody(Instance instance, PxPhysics physics, PxScene scene, int mass, Point pos, Point size, boolean visible, Block block) {
         this.size = size;
 
-        boxShape = new btBoxShape(size);
-        boxObject = new btCollisionObject();
-        boxObject.setCollisionShape(boxShape);
-        Matrix4 transform = boxObject.getWorldTransform().setToTranslation(translation);
-        boxObject.setWorldTransform(transform);
+        PxMaterial material = physics.createMaterial(0.5f, 0.5f, 0.5f);
+        // create default simulation shape flags
+        PxShapeFlags shapeFlags = new PxShapeFlags((byte) (PxShapeFlagEnum.eSCENE_QUERY_SHAPE.value | PxShapeFlagEnum.eSIMULATION_SHAPE.value));
+        PxFilterData tmpFilterData = new PxFilterData(1, 1, 0, 0);
 
-        Vector3 localInertia = new Vector3();
-        boxShape.calculateLocalInertia(mass, localInertia);
 
-        btRigidBody.btRigidBodyConstructionInfo info = new btRigidBody.btRigidBodyConstructionInfo(mass, null, boxShape, mass == 0 ? Vector3.Zero : localInertia);
-        rigidBody = new btRigidBody(info);
+        // create a small dynamic box with size 1x1x1, which will fall on the ground
+        PxVec3 tmpVec = toPxVec(pos);
+        PxTransform tmpPose = new PxTransform(PxIDENTITYEnum.PxIdentity);
+        tmpPose.setP(tmpVec);
+        PxBoxGeometry boxGeometry = new PxBoxGeometry((float)size.x() / 2f, (float)size.y() / 2f, (float)size.z() / 2f); // PxBoxGeometry uses half-sizes
+        PxShape boxShape = physics.createShape(boxGeometry, material, true, shapeFlags);
+        box = physics.createRigidDynamic(tmpPose);
+        boxShape.setSimulationFilterData(tmpFilterData);
+        box.attachShape(boxShape);
+        scene.addActor(box);
 
-        rigidBody.setWorldTransform(boxObject.getWorldTransform());
-
-        if (mass > 0) {
-            MotionState motionState = new MotionState(rigidBody.getWorldTransform());
-            rigidBody.setMotionState(motionState);
-        }
+        box.setMass(mass);
 
         if (visible) spawnEntity(instance, block);
-    }
-
-    public void setTransform(Point pos) {
-        Matrix4 transform = boxObject.getWorldTransform().setToTranslation((float)pos.x(), (float)pos.y(), (float)pos.z());
-        boxObject.setWorldTransform(transform);
-
-        rigidBody.setWorldTransform(boxObject.getWorldTransform());
     }
 
     private void spawnEntity(Instance instance, Block block) {
         // Uses an ITEM_DISPLAY instead of a BLOCK_DISPLAY as it is centered around the middle instead of the corner
         entity = new NoTickingEntity(EntityType.ITEM_DISPLAY);
         meta = (ItemDisplayMeta) entity.getEntityMeta();
-        entity.setInstance(instance, Pos.ZERO);
+        entity.setInstance(instance, new Pos(0, -0.5, 0));
 
         meta.setNotifyAboutChanges(false);
         meta.setItemStack(ItemStack.of(block.registry().material()));
-        Matrix4 transform = rigidBody.getWorldTransform();
+        meta.setInterpolationDuration(1);
+        meta.setInterpolationStartDelta(0);
 
-        Vector3 translation = new Vector3();
-        transform.getTranslation(translation);
-        meta.setTranslation(toVec(translation));
+        meta.setTranslation(toVec(box.getGlobalPose().getP()));
 
-        Vector3 scale = new Vector3();
-        transform.getScale(scale);
-        meta.setScale(toVec(scale).mul(size.x * 2, size.y * 2, size.z * 2));
+        meta.setScale(Vec.fromPoint(size));
 
-        Quaternion rotation = new Quaternion();
-        transform.getRotation(rotation);
-        meta.setLeftRotation(toFloats(rotation));
+        meta.setLeftRotation(toFloats(box.getGlobalPose().getQ()));
         meta.setNotifyAboutChanges(true);
     }
 
     public void updateEntity() {
         if (meta == null) return;
 
-        rigidBody.activate(); // Rigid bodies have to be constantly active in order to be pushed by the player
-
         meta.setNotifyAboutChanges(false);
         meta.setInterpolationDuration(1);
         meta.setInterpolationStartDelta(0);
-        Matrix4 transform = rigidBody.getWorldTransform();
 
-        Vector3 translation = new Vector3();
-        transform.getTranslation(translation);
-        meta.setTranslation(toVec(translation));
+        meta.setTranslation(toVec(box.getGlobalPose().getP()));
 
         // size not updated as it doesn't change
 
-        Quaternion rotation = new Quaternion();
-        transform.getRotation(rotation);
-        meta.setLeftRotation(toFloats(rotation));
+        meta.setLeftRotation(toFloats(box.getGlobalPose().getQ()));
         meta.setNotifyAboutChanges(true);
     }
 
-    public @NotNull btCollisionShape getBoxShape() {
-        return boxShape;
-    }
-    public @NotNull btCollisionObject getBoxObject() {
-        return boxObject;
-    }
-    public @NotNull btRigidBody getRigidBody() {
-        return rigidBody;
-    }
     public @Nullable Entity getEntity() {
         return entity;
     }
@@ -123,22 +92,23 @@ public class BlockRigidBody {
         return meta;
     }
 
-//    public void destroy() {
-//        if (entity != null) entity.remove();
-//
-//        rigidBody.dispose();
-//        boxObject.dispose();
-//        boxShape.dispose();
-//    }
+    public PxRigidDynamic getBox() {
+        return box;
+    }
 
-    public static @NotNull Vec toVec(Vector3 vector3) {
-        return new Vec(vector3.x, vector3.y, vector3.z);
+    public static Vec toVec(PxVec3 pxVec) {
+        return new Vec(pxVec.getX(), pxVec.getY(), pxVec.getZ());
     }
-    public static @NotNull Vector3 toVector3(Point vec) {
-        return new Vector3((float)vec.x(), (float)vec.y(), (float)vec.z());
+    public static PxVec3 toPxVec(Point vec) {
+        try (MemoryStack mem = MemoryStack.stackPush()) {
+            // create an object of PxVec3. The native object is allocated in memory
+            // provided by MemoryStack
+            return PxVec3.createAt(mem, MemoryStack::nmalloc, (float) vec.x(), (float) vec.y(), (float) vec.z());
+        }
+//        return new PxVec3((float) vec.x(), (float) vec.y(), (float) vec.z());
     }
-    public static float[] toFloats(Quaternion rotation) {
-        return new float[] { rotation.x, rotation.y, rotation.z, rotation.w };
+    public static float[] toFloats(PxQuat pxQuat) {
+        return new float[] { pxQuat.getX(), pxQuat.getY(), pxQuat.getZ(), pxQuat.getW() };
     }
 
 }

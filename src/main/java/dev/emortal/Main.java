@@ -1,7 +1,5 @@
 package dev.emortal;
 
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.physics.bullet.Bullet;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
@@ -30,10 +28,11 @@ import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.DimensionTypeManager;
 
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static dev.emortal.BlockRigidBody.toVector3;
+import static dev.emortal.BlockRigidBody.toPxVec;
 
 public class Main {
 
@@ -41,7 +40,6 @@ public class Main {
 
     public static void main(String[] args) {
         System.setProperty("minestom.tps", "60");
-        Bullet.init();
         MinecraftServer server = MinecraftServer.init();
 
 
@@ -52,8 +50,8 @@ public class Main {
         InstanceManager im = MinecraftServer.getInstanceManager();
         Instance instance = im.createInstanceContainer(dimension);
 
-        for (int x = -20; x < 20; x++) {
-            for (int z = -20; z < 20; z++) {
+        for (int x = -200; x < 200; x++) {
+            for (int z = -200; z < 200; z++) {
                 instance.setBlock(x, -1, z, Block.GRASS_BLOCK);
             }
         }
@@ -77,28 +75,13 @@ public class Main {
 
             e.getPlayer().getInventory().setItemStack(3, ItemStack.of(Material.TNT));
             e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.STONE));
-
-            BlockRigidBody cube = physicsHandler.addCube(new BlockRigidBody(
-                    instance,
-                    toVector3(e.getPlayer().getPosition().add(0, 1, 0)),
-                    new Vector3((float)e.getPlayer().getBoundingBox().width() / 2f, (float)e.getPlayer().getBoundingBox().height() / 2f, (float)e.getPlayer().getBoundingBox().depth() / 2f),
-                    0,
-                    false,
-                    Block.AIR
-            ));
-
-            e.getPlayer().scheduler().buildTask(() -> {
-                cube.setTransform(e.getPlayer().getPosition().add(0, 1, 0));
-            }).repeat(TaskSchedule.tick(1)).schedule();
         });
-
-        instance.scheduler().buildTask(() -> {
-            physicsHandler.update(1f / (float)MinecraftServer.TICK_PER_SECOND);
-        }).repeat(TaskSchedule.tick(1)).schedule();
 
 
         DecimalFormat dec = new DecimalFormat("0.00");
         global.addListener(ServerTickMonitorEvent.class, e -> {
+            physicsHandler.update(Math.max(1f / MinecraftServer.TICK_PER_SECOND, MinecraftServer.TICK_MS / 1000f));
+
             double tickTime = Math.floor(e.getTickMonitor().getTickTime() * 100.0) / 100.0;
             bossBar.name(
                     Component.text()
@@ -138,20 +121,18 @@ public class Main {
 
                         if (cube.getMeta().getTranslation().distanceSquared(tntPos.add(0.5)) > 5*5) continue;
                         Vec velocity = Vec.fromPoint(cube.getMeta().getTranslation().sub(tntPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1, 2.5));
-                        cube.getRigidBody().activate();
-                        cube.getRigidBody().setLinearVelocity(cube.getRigidBody().getLinearVelocity().add(toVector3(velocity)));
-                        cube.getRigidBody().setAngularVelocity(toVector3(velocity)); // probably completely wrong but it looks nice
+                        cube.getBox().setLinearVelocity(toPxVec(velocity));
+                        cube.getBox().setAngularVelocity(toPxVec(velocity)); // probably completely wrong but it looks nice
                     }
 
                     List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(tntPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
                     AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
                     for (WorldBlock nearbyBlock : nearbyBlocks) {
-                        var cube = physicsHandler.addCube(new BlockRigidBody(instance, new Vector3((float)nearbyBlock.position().x(), (float)nearbyBlock.position().y(), (float)nearbyBlock.position().z()), new Vector3(0.5f, 0.5f, 0.5f), 1, true, nearbyBlock.block()));
+                        var cube = physicsHandler.spawnCube(nearbyBlock.position(), new Vec(1, 1, 1), 5, true, nearbyBlock.block());
 
                         Vec velocity = Vec.fromPoint(nearbyBlock.position().sub(tntPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1, 2.5));
-                        cube.getRigidBody().activate();
-                        cube.getRigidBody().setLinearVelocity(cube.getRigidBody().getLinearVelocity().add(toVector3(velocity)));
-                        cube.getRigidBody().setAngularVelocity(toVector3(velocity)); // probably completely wrong but it looks nice
+                        cube.getBox().setLinearVelocity(toPxVec(velocity));
+                        cube.getBox().setAngularVelocity(toPxVec(velocity)); // probably completely wrong but it looks nice
                         batch.setBlock(nearbyBlock.position(), Block.AIR);
                     }
                     batch.apply(instance, null);
@@ -161,8 +142,10 @@ public class Main {
 
         global.addListener(PlayerStartSneakingEvent.class, e -> {
             for (int x = -5; x < 5; x++) {
-                for (int z = -5; z < 5; z++) {
-                    physicsHandler.addCube(new BlockRigidBody(instance, new Vector3(x, 15, z), new Vector3(0.5f, 0.5f, 0.5f), 1, true, Block.DIAMOND_BLOCK));
+                for (int y = 0; y < 4; y++) {
+                    for (int z = -5; z < 5; z++) {
+                        physicsHandler.spawnCube(new Vec(x, 30 + y, z), new Vec(1, 1, 1), 1, true, Block.DIAMOND_BLOCK);
+                    }
                 }
             }
         });
