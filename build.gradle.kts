@@ -17,7 +17,7 @@ dependencies {
     implementation("com.badlogicgames.gdx:gdx-bullet:1.12.0")
     implementation("com.badlogicgames.gdx:gdx-bullet-platform:1.12.0:natives-desktop")
 
-    implementation("dev.hollowcube:minestom-ce:30699ec3fd")
+    implementation("net.minestom:minestom-snapshots:e8e22a2b15")
 }
 
 tasks {

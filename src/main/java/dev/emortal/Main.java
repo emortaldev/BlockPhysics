@@ -5,6 +5,7 @@ import com.badlogic.gdx.physics.bullet.Bullet;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.ServerFlag;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -13,12 +14,12 @@ import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.metadata.other.PrimedTntMeta;
 import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
 import net.minestom.server.event.player.PlayerBlockPlaceEvent;
-import net.minestom.server.event.player.PlayerLoginEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.player.PlayerStartSneakingEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
-import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.batch.AbsoluteBlockBatch;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
@@ -27,8 +28,8 @@ import net.minestom.server.network.packet.server.play.ExplosionPacket;
 import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.world.DimensionType;
-import net.minestom.server.world.DimensionTypeManager;
 
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -44,13 +45,10 @@ public class Main {
         Bullet.init();
         MinecraftServer server = MinecraftServer.init();
 
+        DimensionType fullbright = DimensionType.builder(NamespaceID.from("fullbright")).ambientLight(1f).build();
+        MinecraftServer.getDimensionTypeManager().addDimension(fullbright);
 
-        DimensionTypeManager dm = MinecraftServer.getDimensionTypeManager();
-        DimensionType dimension = DimensionType.builder(NamespaceID.from("fb")).ambientLight(1f).build();
-        dm.addDimension(dimension);
-
-        InstanceManager im = MinecraftServer.getInstanceManager();
-        Instance instance = im.createInstanceContainer(dimension);
+        InstanceContainer instance = MinecraftServer.getInstanceManager().createInstanceContainer(fullbright);
 
         for (int x = -20; x < 20; x++) {
             for (int z = -20; z < 20; z++) {
@@ -66,11 +64,9 @@ public class Main {
 
         GlobalEventHandler global = MinecraftServer.getGlobalEventHandler();
 
-        global.addListener(PlayerLoginEvent.class, e -> {
+        global.addListener(PlayerSpawnEvent.class, e -> {
             e.getPlayer().showBossBar(bossBar);
-            e.setSpawningInstance(instance);
             e.getPlayer().setGameMode(GameMode.CREATIVE);
-            e.getPlayer().setRespawnPoint(new Pos(0, 5, 0));
 
             e.getPlayer().sendMessage(Component.text("Welcome, crouch to spawn blocks"));
             e.getPlayer().sendMessage(Component.text("You can interact with the cubes by moving into them"));
@@ -92,8 +88,13 @@ public class Main {
             }).repeat(TaskSchedule.tick(1)).schedule();
         });
 
+        global.addListener(AsyncPlayerConfigurationEvent.class, e -> {
+            e.setSpawningInstance(instance);
+            e.getPlayer().setRespawnPoint(new Pos(0, 20, 0));
+        });
+
         instance.scheduler().buildTask(() -> {
-            physicsHandler.update(1f / (float)MinecraftServer.TICK_PER_SECOND);
+            physicsHandler.update(1f / (float) ServerFlag.SERVER_TICKS_PER_SECOND);
         }).repeat(TaskSchedule.tick(1)).schedule();
 
 
@@ -155,14 +156,14 @@ public class Main {
                         batch.setBlock(nearbyBlock.position(), Block.AIR);
                     }
                     batch.apply(instance, null);
-                }).delay(TaskSchedule.tick(3 * MinecraftServer.TICK_PER_SECOND)).schedule();
+                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
             }
         });
 
         global.addListener(PlayerStartSneakingEvent.class, e -> {
             for (int x = -5; x < 5; x++) {
                 for (int z = -5; z < 5; z++) {
-                    physicsHandler.addCube(new BlockRigidBody(instance, new Vector3(x, 15, z), new Vector3(0.5f, 0.5f, 0.5f), 1, true, Block.DIAMOND_BLOCK));
+                    physicsHandler.addCube(new BlockRigidBody(instance, new Vector3(x, 20, z), new Vector3(0.5f, 0.5f, 0.5f), 1, true, Block.DIAMOND_BLOCK));
                 }
             }
         });

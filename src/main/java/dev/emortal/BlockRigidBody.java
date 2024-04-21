@@ -65,7 +65,9 @@ public class BlockRigidBody {
         // Uses an ITEM_DISPLAY instead of a BLOCK_DISPLAY as it is centered around the middle instead of the corner
         entity = new NoTickingEntity(EntityType.ITEM_DISPLAY);
         meta = (ItemDisplayMeta) entity.getEntityMeta();
-        entity.setInstance(instance, Pos.ZERO);
+
+        meta.setWidth(2);
+        meta.setHeight(2);
 
         meta.setNotifyAboutChanges(false);
         meta.setItemStack(ItemStack.of(block.registry().material()));
@@ -73,7 +75,7 @@ public class BlockRigidBody {
 
         Vector3 translation = new Vector3();
         transform.getTranslation(translation);
-        meta.setTranslation(toVec(translation));
+        entity.setInstance(instance, toVec(translation));
 
         Vector3 scale = new Vector3();
         transform.getScale(scale);
@@ -88,16 +90,17 @@ public class BlockRigidBody {
     public void updateEntity() {
         if (meta == null) return;
 
-        rigidBody.activate(); // Rigid bodies have to be constantly active in order to be pushed by the player
+//        rigidBody.activate(); // Rigid bodies have to be constantly active in order to be pushed by the player
 
         meta.setNotifyAboutChanges(false);
-        meta.setInterpolationDuration(1);
-        meta.setInterpolationStartDelta(0);
+        meta.setTransformationInterpolationDuration(1);
+        meta.setPosRotInterpolationDuration(1);
+        meta.setTransformationInterpolationStartDelta(0);
         Matrix4 transform = rigidBody.getWorldTransform();
 
         Vector3 translation = new Vector3();
         transform.getTranslation(translation);
-        meta.setTranslation(toVec(translation));
+        entity.teleport(Pos.fromPoint(toVec(translation)));
 
         // size not updated as it doesn't change
 
