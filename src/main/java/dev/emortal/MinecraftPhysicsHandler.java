@@ -1,69 +1,58 @@
 package dev.emortal;
 
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.physics.bullet.collision.*;
-import com.badlogic.gdx.physics.bullet.dynamics.*;
+import com.jme3.bullet.PhysicsSpace;
+import com.jme3.bullet.collision.shapes.CollisionShape;
+import com.jme3.bullet.collision.shapes.PlaneCollisionShape;
+import com.jme3.bullet.objects.PhysicsRigidBody;
+import com.jme3.math.Plane;
+import com.jme3.math.Vector3f;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.block.Block;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class MinecraftPhysicsHandler {
 
-    private final @NotNull BlockRigidBody groundObject;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftPhysicsHandler.class);
 
-    private final @NotNull btCollisionConfiguration collisionConfig;
-    private final @NotNull btDynamicsWorld dynamicsWorld;
-    private final @NotNull btDispatcher dispatcher;
-    private final @NotNull btBroadphaseInterface broadphase;
-    private final @NotNull btConstraintSolver constraintSolver;
+    private @NotNull PhysicsSpace physicsSpace;
+    private @NotNull PhysicsRigidBody floor;
 
-    private final @NotNull List<BlockRigidBody> cubes = new ArrayList<>();
+    public final @NotNull List<MinecraftPhysicsObject> objects = new CopyOnWriteArrayList<>();
+    public final @NotNull Map<Entity, MinecraftPhysicsObject> entityObjectMap = new HashMap<>();
 
     public MinecraftPhysicsHandler(Instance instance) {
-        collisionConfig = new btDefaultCollisionConfiguration();
-        dispatcher = new btCollisionDispatcher(collisionConfig);
-        broadphase = new btDbvtBroadphase();
-        constraintSolver = new btSequentialImpulseConstraintSolver();
-        dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, constraintSolver, collisionConfig);
+        instance.scheduleNextTick((a) -> {
+            physicsSpace = new PhysicsSpace(PhysicsSpace.BroadphaseType.DBVT);
 
-        groundObject = addCube(new BlockRigidBody(
-                instance,
-                new Vector3(0, -1, 0),
-                new Vector3(20, 1, 20),
-                0,
-                false,
-                Block.AIR
-        ));
+            CollisionShape planeShape = new PlaneCollisionShape(new Plane(Vector3f.UNIT_Y, 0f));
+            floor = new PhysicsRigidBody(planeShape, PhysicsRigidBody.massForStatic);
+
+            physicsSpace.addCollisionObject(floor);
+        });
     }
 
     public void update(float delta) {
-        dynamicsWorld.stepSimulation(delta); // could do with being on a different thread, however bullet seems to really dislike that
+        if (physicsSpace == null) return;
 
-        for (BlockRigidBody cube : cubes) {
-            cube.updateEntity();
+        physicsSpace.update(delta);
+
+        for (MinecraftPhysicsObject object : objects) {
+            object.updateEntity();
         }
-
     }
 
-    public @NotNull BlockRigidBody addCube(BlockRigidBody cube) {
-        addBody(cube.getRigidBody());
-        cubes.add(cube);
-        return cube;
-    }
-    public void addBody(btRigidBody body) {
-        dynamicsWorld.addRigidBody(body);
+    public MinecraftPhysicsObject getFromEntity(Entity entity) {
+        return entityObjectMap.get(entity);
     }
 
-    public @NotNull BlockRigidBody getGroundObject() {
-        return groundObject;
+    public PhysicsSpace getPhysicsSpace() {
+        return physicsSpace;
     }
-
-    public @NotNull List<BlockRigidBody> getCubes() {
-        return cubes;
-    }
-
-
 }
