@@ -2,15 +2,19 @@ package dev.emortal;
 
 import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.bullet.collision.shapes.CollisionShape;
-import com.jme3.bullet.joints.ConeJoint;
-import com.jme3.bullet.joints.PhysicsJoint;
 import com.jme3.bullet.objects.PhysicsBody;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Vector3f;
 import com.jme3.system.NativeLibraryLoader;
+import dev.emortal.commands.*;
+import dev.emortal.objects.BlockRigidBody;
+import dev.emortal.objects.ChainPhysics;
+import dev.emortal.objects.LanternPhysics;
+import dev.emortal.objects.MinecraftPhysicsObject;
 import dev.emortal.rayfast.area.area3d.Area3d;
 import dev.emortal.rayfast.area.area3d.Area3dRectangularPrism;
 import dev.emortal.rayfast.vector.Vector3d;
+import dev.emortal.tools.*;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
@@ -23,10 +27,14 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.GameMode;
+import net.minestom.server.entity.Player;
 import net.minestom.server.entity.metadata.other.PrimedTntMeta;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.item.ItemDropEvent;
-import net.minestom.server.event.player.*;
+import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
+import net.minestom.server.event.player.PlayerBlockBreakEvent;
+import net.minestom.server.event.player.PlayerBlockPlaceEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.extras.MojangAuth;
 import net.minestom.server.instance.Instance;
@@ -36,7 +44,6 @@ import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.play.ExplosionPacket;
-import net.minestom.server.timer.Task;
 import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.world.DimensionType;
@@ -51,23 +58,24 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 
-import static dev.emortal.BlockRigidBody.toVec;
-import static dev.emortal.BlockRigidBody.toVector3;
+import static dev.emortal.objects.BlockRigidBody.toVector3;
 
 public class Main {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     private static final Set<Point> BLOCKS_IN_SPHERE = SphereUtil.getBlocksInSphere(5);
-    private static final Map<UUID, PhysicsRigidBody> PLAYER_OBJECT_MAP = new HashMap<>();
+    public static final Map<UUID, PhysicsRigidBody> PLAYER_OBJECT_MAP = new HashMap<>();
 
     private static final Map<Point, MinecraftPhysicsObject> PHYSICS_BLOCK_MAP = new HashMap<>();
 
     private static final Map<BoundingBox, Area3d> boundingBoxToArea3dMap = new HashMap<>();
 
+    public static boolean paused = false;
+
     public static void main(String[] args) {
         System.setProperty("minestom.tps", "60");
-        NativeLibraryLoader.loadLibbulletjme(true, new File("natives/"), "Release", "SpMt");
+        NativeLibraryLoader.loadLibbulletjme(true, new File("natives/"), "Release", "Sp");
 
         MinecraftServer server = MinecraftServer.init();
         MojangAuth.init();
@@ -101,25 +109,35 @@ public class Main {
         GlobalEventHandler global = MinecraftServer.getGlobalEventHandler();
 
         global.addListener(PlayerSpawnEvent.class, e -> {
+            Player player = e.getPlayer();
             e.getPlayer().showBossBar(bossBar);
             e.getPlayer().setGameMode(GameMode.CREATIVE);
 
-            e.getPlayer().sendMessage(Component.text("Welcome, crouch to spawn a player"));
+            e.getPlayer().sendMessage(Component.text("Welcome to your physics playground!"));
+            e.getPlayer().sendMessage(Component.text("Check your inventory for more tools"));
+            e.getPlayer().sendMessage(Component.text("Use /clear to clear all objects in the world"));
 //            e.getPlayer().sendMessage(Component.text("You can interact with the cubes by moving into them"));
 
-            e.getPlayer().getInventory().setItemStack(6, ItemStack.of(Material.DIAMOND_SWORD));
-            e.getPlayer().getInventory().setItemStack(5, ItemStack.of(Material.BLAZE_ROD));
-            e.getPlayer().getInventory().setItemStack(4, ItemStack.of(Material.CHAIN));
-            e.getPlayer().getInventory().setItemStack(3, ItemStack.of(Material.TNT));
-            e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.STONE));
+            if (e.getPlayer().getUsername().equals("emortaldev")) {
+                e.getPlayer().getInventory().setItemStack(9, new DiamondLayerTool(e.getPlayer(), physicsHandler).getItem());
+                e.getPlayer().getInventory().setItemStack(7, new DeleteTool(e.getPlayer(), physicsHandler).getItem());
+                e.getPlayer().getInventory().setItemStack(6, new PlayerSpawnerTool(e.getPlayer(), physicsHandler).getItem());
+                e.getPlayer().getInventory().setItemStack(5, new GrabberTool(e.getPlayer(), physicsHandler).getItem());
+                e.getPlayer().getInventory().setItemStack(4, new WeldTool(e.getPlayer(), physicsHandler).getItem());
+            }
 
-            CollisionShape boxShape = new BoxCollisionShape(0.5f, 1f, 0.5f);
+            e.getPlayer().getInventory().setItemStack(3, ItemStack.of(Material.CHAIN));
+            e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.TNT));
+            e.getPlayer().getInventory().setItemStack(1, ItemStack.of(Material.STONE));
+
+            CollisionShape boxShape = new BoxCollisionShape((float) (e.getPlayer().getBoundingBox().width()/2f), (float) (e.getPlayer().getBoundingBox().height()/2f), (float) (e.getPlayer().getBoundingBox().depth()/2f));
             PhysicsRigidBody playerRigidBody = new PhysicsRigidBody(boxShape, PhysicsRigidBody.massForStatic);
+            physicsHandler.getPhysicsSpace().addCollisionObject(playerRigidBody);
 
-//            cube.getEntity().setBoundingBox(e.getPlayer().getBoundingBox());
             PLAYER_OBJECT_MAP.put(e.getPlayer().getUuid(), playerRigidBody);
 
             e.getPlayer().scheduler().buildTask(() -> {
+                playerRigidBody.activate();
                 playerRigidBody.setPhysicsLocation(toVector3(e.getPlayer().getPosition().add(0, 1, 0)));
             }).repeat(TaskSchedule.tick(1)).schedule();
         });
@@ -129,10 +147,22 @@ public class Main {
             e.getPlayer().setRespawnPoint(new Pos(0, 20, 0));
         });
 
-        instance.scheduler().buildTask(() -> {
-            physicsHandler.update(1f / (float) ServerFlag.SERVER_TICKS_PER_SECOND);
+        instance.scheduler().buildTask(new Runnable() {
+            long lastRan = System.nanoTime();
+            @Override
+            public void run() {
+                long diff = System.nanoTime() - lastRan;
+                float deltaTime = diff / 1_000_000_000f;
+
+                lastRan = System.nanoTime();
+                if (paused) return;
+                physicsHandler.update(deltaTime);
+            }
         }).repeat(TaskSchedule.tick(1)).schedule();
 
+        global.addListener(ItemDropEvent.class, e -> {
+            e.setCancelled(true);
+        });
 
         DecimalFormat dec = new DecimalFormat("0.00");
         global.addListener(ServerTickMonitorEvent.class, e -> {
@@ -140,8 +170,6 @@ public class Main {
             bossBar.name(
                     Component.text()
                             .append(Component.text("MSPT: " + dec.format(tickTime)))
-                            .append(Component.text(" | "))
-                            .append(Component.text("Cubes: " + physicsHandler.objects.size()))
             );
             bossBar.progress(Math.min((float)tickTime / (float)MinecraftServer.TICK_MS, 1f));
 
@@ -152,91 +180,26 @@ public class Main {
             }
         });
 
-        global.addListener(ItemDropEvent.class, e -> {
-            e.setCancelled(true);
-        });
-
-        Map<UUID, Task> holdingBodyTaskMap = new HashMap<>();
-        Map<UUID, MinecraftPhysicsObject> firstWeld = new HashMap<>();
-        global.addListener(PlayerUseItemEvent.class, e -> {
-            if (e.getItemStack().material() == Material.DIAMOND_SWORD) {
-                Entity entity = raycastEntity(instance, e.getPlayer().getPosition().add(0, e.getPlayer().getEyeHeight(), 0), e.getPlayer().getPosition().direction(), 100000, (ent) -> {
-                    if (ent == e.getPlayer()) return false;
-                    return true;
-                });
-
-                if (entity == null) return;
-
-                MinecraftPhysicsObject obj = physicsHandler.getFromEntity(entity);
-
-                if (obj == null) return;
-
-                obj.getRigidBody().activate();
-
-                if (firstWeld.containsKey(e.getPlayer().getUuid())) {
-                    PhysicsJoint joint = new ConeJoint(firstWeld.get(e.getPlayer().getUuid()).getRigidBody(), obj.getRigidBody(), Vector3f.ZERO, Vector3f.ZERO);
-                    physicsHandler.getPhysicsSpace().addJoint(joint);
-
-                    firstWeld.remove(e.getPlayer().getUuid());
-                    e.getPlayer().sendMessage("Welded!");
-                    return;
-                }
-
-                firstWeld.put(e.getPlayer().getUuid(), obj);
-                e.getPlayer().sendMessage("Selected first object");
-            }
-
-            if (e.getItemStack().material() == Material.BLAZE_ROD) {
-                if (holdingBodyTaskMap.containsKey(e.getPlayer().getUuid())) {
-                    holdingBodyTaskMap.get(e.getPlayer().getUuid()).cancel();
-                    holdingBodyTaskMap.remove(e.getPlayer().getUuid());
-                    return;
-                }
-
-                Entity entity = raycastEntity(instance, e.getPlayer().getPosition().add(0, e.getPlayer().getEyeHeight(), 0), e.getPlayer().getPosition().direction(), 100000, (ent) -> {
-                    if (ent == e.getPlayer()) return false;
-                    return true;
-                });
-
-                if (entity == null) return;
-
-                e.getPlayer().sendMessage("Hit entity");
-
-                MinecraftPhysicsObject obj = physicsHandler.getFromEntity(entity);
-
-                if (obj == null) return;
-
-                e.getPlayer().sendMessage("Found object");
-
-                obj.getRigidBody().activate();
-
-                double distance = e.getPlayer().getPosition().distance(entity.getPosition());
-
-                var task = e.getPlayer().scheduler().buildTask(() -> {
-                    PhysicsRigidBody rigidBody = obj.getRigidBody();
-
-                    Vector3f physicsVec = new Vector3f();
-                    rigidBody.getPhysicsLocation(physicsVec);
-
-                    Vec wantedPos = Vec.fromPoint(e.getPlayer().getPosition().add(0, e.getPlayer().getEyeHeight(), 0).add(e.getPlayer().getPosition().direction().mul(distance)));
-                    Vec diff = Vec.fromPoint(wantedPos.sub(toVec(physicsVec)));
-                    rigidBody.setLinearVelocity(toVector3(diff.mul(7)));
-                }).repeat(TaskSchedule.tick(1)).schedule();
-
-                holdingBodyTaskMap.put(e.getPlayer().getUuid(), task);
-            }
-        });
-
+        // TODO: kill barrier / floor
 
         global.addListener(PlayerBlockPlaceEvent.class, e -> {
             Point blockPos = e.getBlockPosition();
 
-            /*
+            if (e.getBlock().compare(Block.PLAYER_HEAD) || e.getBlock().compare(Block.PLAYER_WALL_HEAD)) {
+                e.setCancelled(true);
+            }
+
+//            if (e.getBlock().compare(Block.TRAPDOOR)) {
+//                e.setCancelled(true);
+//
+//                new TrapdoorPhysics(physicsHandler, null, instance, new Vector3f(0.5f, 0.5f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 1.5f, e.getBlockPosition().blockZ() + 0.5f));
+//            }
+
             if (e.getBlock().compare(Block.LANTERN)) {
                 e.setCancelled(true);
 
-                physicsHandler.addCube(new LanternPhysics(physicsHandler, instance, new Vector3(e.getBlockPosition().blockX(), e.getBlockPosition().blockY(), e.getBlockPosition().blockZ()), new Vector3(0.1f, 0.4f, 0.1f), 1, Block.LANTERN, new Vector3(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 0.5f, e.getBlockPosition().blockZ() + 0.5f)));
-            }*/
+                new LanternPhysics(physicsHandler, null, instance, new Vector3f(0.1f, 0.4f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 1.5f, e.getBlockPosition().blockZ() + 0.5f));
+            }
             if (e.getBlock().compare(Block.CHAIN)) {
                 e.setCancelled(true);
 
@@ -264,6 +227,7 @@ public class Main {
 
                     for (MinecraftPhysicsObject cube : physicsHandler.objects) {
                         if (cube.getMeta() == null) continue;
+                        if (cube.getEntity() == null) continue;
 
                         if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
                         Vec velocity = Vec.fromPoint(cube.getEntity().getPosition().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1, 2.5));
@@ -313,27 +277,13 @@ public class Main {
             }
         });
 
-
-        global.addListener(PlayerStartSneakingEvent.class, e -> {
-            var startPos = e.getPlayer().getPosition().add(e.getPlayer().getPosition().direction().mul(5));
-            // all halves \/
-            Vector3f torsoSize = new Vector3f(4.0f/16.0f, 6.0f/16.0f, 2.0f/16.0f);
-//            Vector3 headSize = new Vector3(4.0f/16.0f, 4.0f/16.0f, 4.0f/16.0f);
-            Vector3f headSize = new Vector3f(1f/16.0f, 4.0f/16.0f, 1f/16.0f);
-//            Vector3 limbSize = new Vector3(2.0f/16.0f, 6.0f/16.0f, 2.0f/16.0f);
-            Vector3f limbSize = new Vector3f(0.5f/16.0f, 6.0f/16.0f, 0.5f/16.0f);
-
-            MinecraftPhysicsObject torso = new RagdollPhysics(physicsHandler, e.getPlayer(),null, PlayerDisplayPart.TORSO, instance, toVector3(startPos.add(0, 1.4, 0)), torsoSize, 1);
-            MinecraftPhysicsObject head = new RagdollPhysics(physicsHandler, e.getPlayer(), torso.getRigidBody(), PlayerDisplayPart.HEAD, instance, toVector3(startPos.add(0, 1.4, 0)), headSize, 1);
-            MinecraftPhysicsObject rightArm = new RagdollPhysics(physicsHandler, e.getPlayer(), torso.getRigidBody(), PlayerDisplayPart.RIGHT_ARM, instance, toVector3(startPos.add(0, 1.4, 0)), limbSize, 1);
-            MinecraftPhysicsObject leftArm = new RagdollPhysics(physicsHandler, e.getPlayer(), torso.getRigidBody(), PlayerDisplayPart.LEFT_ARM, instance, toVector3(startPos.add(0, 1.4, 0)), limbSize, 1);
-            MinecraftPhysicsObject rightLeg = new RagdollPhysics(physicsHandler, e.getPlayer(), torso.getRigidBody(), PlayerDisplayPart.RIGHT_LEG, instance, toVector3(startPos.add(0, 1.4, 0)), limbSize, 1);
-            MinecraftPhysicsObject leftLeg = new RagdollPhysics(physicsHandler, e.getPlayer(), torso.getRigidBody(), PlayerDisplayPart.LEFT_LEG, instance, toVector3(startPos.add(0, 1.4, 0)), limbSize, 1);
-        });
-
         CommandManager commandManager = MinecraftServer.getCommandManager();
         commandManager.register(new ChainLengthCommand());
         commandManager.register(new ClearCommand(physicsHandler));
+        commandManager.register(new PerformanceCommand(MinecraftServer.getGlobalEventHandler(), physicsHandler));
+        commandManager.register(new TrustCommand(physicsHandler));
+        commandManager.register(new UnTrustCommand());
+        commandManager.register(new PlayerSizeCommand());
 
         server.start("0.0.0.0", 25563);
     }
