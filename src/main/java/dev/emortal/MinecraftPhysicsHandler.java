@@ -37,6 +37,10 @@ public class MinecraftPhysicsHandler {
         instance.scheduleNextTick((a) -> {
             physicsSpace = new PhysicsSpace(PhysicsSpace.BroadphaseType.DBVT);
 
+            // Default: -9.81f
+            // Minecraft: -31.36f
+            physicsSpace.setGravity(new Vector3f(0, -17f, 0));
+
             CollisionShape planeShape = new PlaneCollisionShape(new Plane(Vector3f.UNIT_Y, 0f));
             floor = new PhysicsRigidBody(planeShape, PhysicsRigidBody.massForStatic);
 
