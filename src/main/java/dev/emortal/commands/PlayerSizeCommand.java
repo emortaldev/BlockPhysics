@@ -1,5 +1,6 @@
 package dev.emortal.commands;
 
+import net.kyori.adventure.text.Component;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentType;
 
@@ -9,9 +10,11 @@ public class PlayerSizeCommand extends Command {
     public PlayerSizeCommand() {
         super("playersize");
 
-        var intArg = ArgumentType.Double("playerSize").between(0.2, 10.0);
+        var doubleArg = ArgumentType.Double("playerSize").between(0.2, 10.0);
         addSyntax((sender, ctx) -> {
-            PLAYER_SIZE = ctx.get(intArg);
-        }, intArg);
+            PLAYER_SIZE = ctx.get(doubleArg);
+
+            sender.sendMessage(Component.text("Set player size to: " + PLAYER_SIZE));
+        }, doubleArg);
     }
 }

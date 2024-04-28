@@ -6,10 +6,7 @@ import com.jme3.bullet.objects.PhysicsBody;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Vector3f;
 import com.jme3.system.NativeLibraryLoader;
-import dev.emortal.commands.ChainLengthCommand;
-import dev.emortal.commands.ClearCommand;
-import dev.emortal.commands.PerformanceCommand;
-import dev.emortal.commands.PlayerSizeCommand;
+import dev.emortal.commands.*;
 import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.ChainPhysics;
 import dev.emortal.objects.LanternPhysics;
@@ -228,7 +225,7 @@ public class Main {
                         if (cube.getEntity() == null) continue;
 
                         if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
-                        Vec velocity = Vec.fromPoint(cube.getEntity().getPosition().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1, 2.5));
+                        Vec velocity = Vec.fromPoint(cube.getEntity().getPosition().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
                         cube.getRigidBody().activate();
 
                         Vector3f linearVelocity = new Vector3f();
@@ -242,7 +239,7 @@ public class Main {
                     for (WorldBlock nearbyBlock : nearbyBlocks) {
                         var cube = new BlockRigidBody(physicsHandler, instance, new Vector3f((float)nearbyBlock.position().x(), (float)nearbyBlock.position().y(), (float)nearbyBlock.position().z()), new Vector3f(0.5f, 0.5f, 0.5f), 1, true, nearbyBlock.block());
 
-                        Vec velocity = Vec.fromPoint(nearbyBlock.position().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1, 2.5));
+                        Vec velocity = Vec.fromPoint(nearbyBlock.position().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
                         cube.getRigidBody().activate();
                         Vector3f linearVelocity = new Vector3f();
                         cube.getRigidBody().getLinearVelocity(linearVelocity);
@@ -280,6 +277,7 @@ public class Main {
         commandManager.register(new ClearCommand(physicsHandler));
         commandManager.register(new PerformanceCommand(MinecraftServer.getGlobalEventHandler(), physicsHandler));
         commandManager.register(new PlayerSizeCommand());
+        commandManager.register(new TntStrengthCommand());
 
         server.start("0.0.0.0", 25563);
     }
