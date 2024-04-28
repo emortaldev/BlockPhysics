@@ -6,7 +6,10 @@ import com.jme3.bullet.objects.PhysicsBody;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Vector3f;
 import com.jme3.system.NativeLibraryLoader;
-import dev.emortal.commands.*;
+import dev.emortal.commands.ChainLengthCommand;
+import dev.emortal.commands.ClearCommand;
+import dev.emortal.commands.PerformanceCommand;
+import dev.emortal.commands.PlayerSizeCommand;
 import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.ChainPhysics;
 import dev.emortal.objects.LanternPhysics;
@@ -27,7 +30,6 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.GameMode;
-import net.minestom.server.entity.Player;
 import net.minestom.server.entity.metadata.other.PrimedTntMeta;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.item.ItemDropEvent;
@@ -109,22 +111,18 @@ public class Main {
         GlobalEventHandler global = MinecraftServer.getGlobalEventHandler();
 
         global.addListener(PlayerSpawnEvent.class, e -> {
-            Player player = e.getPlayer();
             e.getPlayer().showBossBar(bossBar);
             e.getPlayer().setGameMode(GameMode.CREATIVE);
 
             e.getPlayer().sendMessage(Component.text("Welcome to your physics playground!"));
             e.getPlayer().sendMessage(Component.text("Check your inventory for more tools"));
             e.getPlayer().sendMessage(Component.text("Use /clear to clear all objects in the world"));
-//            e.getPlayer().sendMessage(Component.text("You can interact with the cubes by moving into them"));
 
-            if (e.getPlayer().getUsername().equals("emortaldev")) {
-                e.getPlayer().getInventory().setItemStack(9, new DiamondLayerTool(e.getPlayer(), physicsHandler).getItem());
-                e.getPlayer().getInventory().setItemStack(7, new DeleteTool(e.getPlayer(), physicsHandler).getItem());
-                e.getPlayer().getInventory().setItemStack(6, new PlayerSpawnerTool(e.getPlayer(), physicsHandler).getItem());
-                e.getPlayer().getInventory().setItemStack(5, new GrabberTool(e.getPlayer(), physicsHandler).getItem());
-                e.getPlayer().getInventory().setItemStack(4, new WeldTool(e.getPlayer(), physicsHandler).getItem());
-            }
+            e.getPlayer().getInventory().setItemStack(9, new DiamondLayerTool(e.getPlayer(), physicsHandler).getItem());
+            e.getPlayer().getInventory().setItemStack(7, new DeleteTool(e.getPlayer(), physicsHandler).getItem());
+            e.getPlayer().getInventory().setItemStack(6, new PlayerSpawnerTool(e.getPlayer(), physicsHandler).getItem());
+            e.getPlayer().getInventory().setItemStack(5, new GrabberTool(e.getPlayer(), physicsHandler).getItem());
+            e.getPlayer().getInventory().setItemStack(4, new WeldTool(e.getPlayer(), physicsHandler).getItem());
 
             e.getPlayer().getInventory().setItemStack(3, ItemStack.of(Material.CHAIN));
             e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.TNT));
@@ -281,8 +279,6 @@ public class Main {
         commandManager.register(new ChainLengthCommand());
         commandManager.register(new ClearCommand(physicsHandler));
         commandManager.register(new PerformanceCommand(MinecraftServer.getGlobalEventHandler(), physicsHandler));
-        commandManager.register(new TrustCommand(physicsHandler));
-        commandManager.register(new UnTrustCommand());
         commandManager.register(new PlayerSizeCommand());
 
         server.start("0.0.0.0", 25563);
