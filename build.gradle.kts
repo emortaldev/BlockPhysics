@@ -17,15 +17,16 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.stephengold:Libbulletjme:20.2.0")
-//    implementation("com.badlogicgames.gdx:gdx-bullet:1.12.0")
-//    implementation("com.badlogicgames.gdx:gdx-bullet-platform:1.12.0:natives-desktop")
+    implementation("com.github.stephengold:Libbulletjme-Windows64:22.0.1")
 
-    implementation("net.minestom:minestom-snapshots:e8e22a2b15")
+    // native libraries:
+    runtimeOnly("com.github.stephengold:Libbulletjme-Linux64:22.0.1:SpDebug")
 
-    implementation("dev.emortal:rayfast:928feb1")
-    implementation("ch.qos.logback:logback-classic:1.5.1")
-    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+    implementation("io.github.electrostat-lab:snaploader:1.0.0-stable")
+
+    implementation("net.minestom:minestom-snapshots:1_21_4-44b34717ed")
+
+    implementation("ch.qos.logback:logback-classic:1.5.17")
 }
 
 tasks {

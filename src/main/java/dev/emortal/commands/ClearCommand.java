@@ -7,17 +7,16 @@ import com.jme3.bullet.joints.PhysicsJoint;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Plane;
 import com.jme3.math.Vector3f;
-import dev.emortal.MinecraftPhysicsHandler;
+import dev.emortal.MinecraftPhysics;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.timer.TaskSchedule;
 
-import static dev.emortal.Main.PLAYER_OBJECT_MAP;
-import static dev.emortal.objects.BlockRigidBody.toVector3;
+import static dev.emortal.utils.CoordinateUtils.toVector3;
 
 public class ClearCommand extends Command {
-    public ClearCommand(MinecraftPhysicsHandler physicsHandler) {
+    public ClearCommand(MinecraftPhysics physicsHandler) {
         super("clear");
 
         setDefaultExecutor((sender, ctx) -> {
@@ -37,8 +36,7 @@ public class ClearCommand extends Command {
                 entity.remove();
             }
 
-            physicsHandler.entityObjectMap.clear();
-            physicsHandler.objects.clear();
+            physicsHandler.getObjects().clear();
 
             // Re-add the floor
             CollisionShape planeShape = new PlaneCollisionShape(new Plane(Vector3f.UNIT_Y, 0f));
@@ -50,7 +48,7 @@ public class ClearCommand extends Command {
                 PhysicsRigidBody playerRigidBody = new PhysicsRigidBody(boxShape, PhysicsRigidBody.massForStatic);
                 physicsHandler.getPhysicsSpace().addCollisionObject(playerRigidBody);
 
-                PLAYER_OBJECT_MAP.put(player1.getUuid(), playerRigidBody);
+                player1.setTag(MinecraftPhysics.PLAYER_RIGID_BODY_TAG, playerRigidBody);
 
                 player1.scheduler().buildTask(() -> {
                     playerRigidBody.activate();

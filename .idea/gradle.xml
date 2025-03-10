@@ -5,10 +5,10 @@
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
-        <option name="gradleJvm" value="21" />
+        <option name="gradleJvm" value="azul-21 (2)" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$" />
+            <option value="/var/home/emortal/IdeaProjects/BlockPhysics" />
           </set>
         </option>
       </GradleProjectSettings>

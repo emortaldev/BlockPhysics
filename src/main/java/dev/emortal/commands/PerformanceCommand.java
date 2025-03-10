@@ -1,7 +1,7 @@
 package dev.emortal.commands;
 
 import com.jme3.bullet.objects.PhysicsRigidBody;
-import dev.emortal.MinecraftPhysicsHandler;
+import dev.emortal.MinecraftPhysics;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.command.CommandSender;
@@ -13,8 +13,8 @@ import org.jetbrains.annotations.NotNull;
 
 public final class PerformanceCommand extends Command {
 
-    private final MinecraftPhysicsHandler physicsHandler;
-    public PerformanceCommand(@NotNull EventNode<Event> eventNode, MinecraftPhysicsHandler physicsHandler) {
+    private final MinecraftPhysics physicsHandler;
+    public PerformanceCommand(@NotNull EventNode<Event> eventNode, MinecraftPhysics physicsHandler) {
         super("performance", "stats");
         this.physicsHandler = physicsHandler;
         this.addSyntax(this::onExecute);
