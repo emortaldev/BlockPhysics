@@ -8,7 +8,7 @@
         <option name="gradleJvm" value="azul-21 (2)" />
         <option name="modules">
           <set>
-            <option value="/var/home/emortal/IdeaProjects/BlockPhysics" />
+            <option value="$PROJECT_DIR$" />
           </set>
         </option>
       </GradleProjectSettings>

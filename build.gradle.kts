@@ -22,11 +22,11 @@ dependencies {
     // native libraries:
     runtimeOnly("com.github.stephengold:Libbulletjme-Linux64:22.0.1:SpDebug")
 
-    implementation("io.github.electrostat-lab:snaploader:1.0.0-stable")
+    implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
-    implementation("net.minestom:minestom-snapshots:1_21_4-44b34717ed")
+    implementation("net.minestom:minestom-snapshots:1_21_5-1c8431a9ec")
 
-    implementation("ch.qos.logback:logback-classic:1.5.17")
+    implementation("ch.qos.logback:logback-classic:1.5.18")
 }
 
 tasks {

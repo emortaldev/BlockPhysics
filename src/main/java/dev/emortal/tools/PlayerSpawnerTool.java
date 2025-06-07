@@ -9,11 +9,11 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.item.ItemComponent;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.item.component.HeadProfile;
@@ -77,7 +77,7 @@ public class PlayerSpawnerTool extends Tool {
     @Override
     public ItemStack getItem() {
         return ItemStack.builder(Material.PLAYER_HEAD)
-                .set(ItemComponent.PROFILE, new HeadProfile(player.getSkin()))
+                .set(DataComponents.PROFILE, new HeadProfile(player.getSkin()))
                 .customName(Component.text("Player Spawner", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false))
                 .set(Tool.TOOL_NAME_TAG, "playerspawner")
                 .build();

@@ -20,6 +20,7 @@ import electrostatic4j.snaploader.filesystem.DirectoryPath;
 import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
 import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
@@ -47,7 +48,6 @@ import net.minestom.server.network.packet.server.play.ExplosionPacket;
 import net.minestom.server.particle.Particle;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.timer.TaskSchedule;
-import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.world.DimensionType;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -93,7 +93,7 @@ public class Main {
 
 
         DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
-        var fullbright = MinecraftServer.getDimensionTypeRegistry().register(NamespaceID.from("fullbright"), fullbrightDimension);
+        var fullbright = MinecraftServer.getDimensionTypeRegistry().register(Key.key("fullbright"), fullbrightDimension);
 
         InstanceContainer instance = MinecraftServer.getInstanceManager().createInstanceContainer(fullbright);
 

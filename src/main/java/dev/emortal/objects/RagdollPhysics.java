@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.NoTickingEntity;
 import dev.emortal.PlayerDisplayPart;
+import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
@@ -15,7 +16,6 @@ import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.entity.metadata.display.ItemDisplayMeta;
 import net.minestom.server.instance.block.Block;
-import net.minestom.server.item.ItemComponent;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.item.component.HeadProfile;
@@ -89,11 +89,11 @@ public class RagdollPhysics extends BlockRigidBody {
         entity.editEntityMeta(ItemDisplayMeta.class, meta -> {
             meta.setWidth(2);
             meta.setHeight(2);
-            meta.setDisplayContext(ItemDisplayMeta.DisplayContext.THIRD_PERSON_RIGHT_HAND);
+            meta.setDisplayContext(ItemDisplayMeta.DisplayContext.THIRDPERSON_RIGHT_HAND);
             meta.setItemStack(
                     ItemStack.builder(Material.PLAYER_HEAD)
                             .itemModel(this.part.getCustomModelData())
-                            .set(ItemComponent.PROFILE, new HeadProfile(this.playerSkin))
+                            .set(DataComponents.PROFILE, new HeadProfile(this.playerSkin))
                             .customModelData(List.of(), List.of(), List.of("default"), List.of())
                             .build()
             );
