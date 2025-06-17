@@ -21,6 +21,7 @@ dependencies {
 
     // native libraries:
     runtimeOnly("com.github.stephengold:Libbulletjme-Linux64:22.0.1:SpDebug")
+    runtimeOnly("com.github.stephengold:Libbulletjme-Windows64:22.0.1:SpDebug")
 
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
