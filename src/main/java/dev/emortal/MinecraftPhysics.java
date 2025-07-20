@@ -2,14 +2,17 @@ package dev.emortal;
 
 import com.jme3.bullet.NativePhysicsObject;
 import com.jme3.bullet.PhysicsSpace;
+import com.jme3.bullet.collision.PhysicsRayTestResult;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.collision.shapes.PlaneCollisionShape;
 import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Plane;
 import com.jme3.math.Vector3f;
 import dev.emortal.objects.MinecraftPhysicsObject;
+import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.tag.Tag;
+import net.minestom.server.timer.TaskSchedule;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,6 +26,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class MinecraftPhysics {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftPhysics.class);
+
+    private boolean paused = false;
 
     private @NotNull PhysicsSpace physicsSpace;
     private @NotNull PhysicsRigidBody floor;
@@ -52,7 +57,22 @@ public class MinecraftPhysics {
         });
     }
 
-    public void update(float delta) {
+    public void start() {
+        instance.scheduler().buildTask(new Runnable() {
+            long lastRan = System.nanoTime();
+            @Override
+            public void run() {
+                long diff = System.nanoTime() - lastRan;
+                float deltaTime = diff / 1_000_000_000f;
+
+                lastRan = System.nanoTime();
+                if (paused) return;
+                update(deltaTime);
+            }
+        }).repeat(TaskSchedule.tick(1)).schedule();
+    }
+
+    private void update(float delta) {
         if (physicsSpace == null) return;
 
         physicsSpace.update(delta);
@@ -79,6 +99,21 @@ public class MinecraftPhysics {
 
     public @Nullable MinecraftPhysicsObject getObjectByPhysicsObject(NativePhysicsObject physicsObject) {
         return objectMap.get(physicsObject);
+    }
+
+    public List<PhysicsRayTestResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
+        Point endPoint = startPoint.add(direction.asVec().normalize().mul(maxDistance));
+        List<PhysicsRayTestResult> results = physicsSpace.rayTest(new Vector3f((float) startPoint.x(), (float) startPoint.y(), (float) startPoint.z()), new Vector3f((float) endPoint.x(), (float) endPoint.y(), (float) endPoint.z()));
+
+        return results;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
     }
 
     public Instance getInstance() {

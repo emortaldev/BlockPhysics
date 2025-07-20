@@ -20,8 +20,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-import static dev.emortal.Main.raycastEntity;
-
 public class WeldTool extends Tool {
 
     private @Nullable PhysicsRigidBody firstObject = null;
@@ -49,7 +47,7 @@ public class WeldTool extends Tool {
             player.sendMessage("Deselected first object");
         }
 
-        List<PhysicsRayTestResult> results = raycastEntity(physicsHandler.getPhysicsSpace(), player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
         PhysicsCollisionObject obj = results.getFirst().getCollisionObject();
@@ -63,7 +61,7 @@ public class WeldTool extends Tool {
 
     @Override
     public void onRightClick() {
-        List<PhysicsRayTestResult> results = raycastEntity(physicsHandler.getPhysicsSpace(), player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
         PhysicsCollisionObject obj = results.getFirst().getCollisionObject();

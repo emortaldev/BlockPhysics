@@ -25,8 +25,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 import static dev.emortal.commands.PlayerSizeCommand.PLAYER_SIZE;
-import static dev.emortal.utils.CoordinateUtils.toVec;
-import static dev.emortal.utils.CoordinateUtils.toVector3;
 
 public class RagdollPhysics extends BlockRigidBody {
 
@@ -71,7 +69,7 @@ public class RagdollPhysics extends BlockRigidBody {
                 default -> throw new IllegalStateException("Unexpected value: " + part);
             };
 
-            New6Dof joint = new New6Dof(torso, rigidBody, toVector3(toVec(firstThing).mul(PLAYER_SIZE)), toVector3(toVec(secondThing).mul(PLAYER_SIZE)), Matrix3f.IDENTITY, Matrix3f.IDENTITY, RotationOrder.XYZ);
+            New6Dof joint = new New6Dof(torso, rigidBody, firstThing.mult((float) PLAYER_SIZE), secondThing.mult((float) PLAYER_SIZE), Matrix3f.IDENTITY, Matrix3f.IDENTITY, RotationOrder.XYZ);
             joint.setBreakingImpulseThreshold(60);
             mcPhysics.getPhysicsSpace().add(joint);
             addRelated(joint);

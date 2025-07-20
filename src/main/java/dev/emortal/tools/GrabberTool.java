@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static dev.emortal.Main.raycastEntity;
 import static dev.emortal.utils.CoordinateUtils.toVec;
 import static dev.emortal.utils.CoordinateUtils.toVector3;
 
@@ -117,7 +116,7 @@ public class GrabberTool extends Tool {
             return;
         }
 
-        List<PhysicsRayTestResult> results = raycastEntity(physicsHandler.getPhysicsSpace(), player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
         PhysicsCollisionObject obj = results.getFirst().getCollisionObject();
@@ -151,8 +150,8 @@ public class GrabberTool extends Tool {
             Vector3f physicsVec = new Vector3f();
             obj.getPhysicsLocation(physicsVec);
 
-            Vec wantedPos = Vec.fromPoint(player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)));
-            Vec diff = Vec.fromPoint(wantedPos.sub(toVec(physicsVec)));
+            Vec wantedPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)).asVec();
+            Vec diff = wantedPos.sub(toVec(physicsVec)).asVec();
 
             rigidBody.setLinearVelocity(toVector3(diff.mul(grabberForce)));
         }).repeat(TaskSchedule.tick(1)).schedule();

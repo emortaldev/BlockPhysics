@@ -16,8 +16,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import static dev.emortal.Main.raycastEntity;
-
 public class DeleteTool extends Tool {
 
     private final @NotNull Player player;
@@ -41,7 +39,7 @@ public class DeleteTool extends Tool {
 
     @Override
     public void onRightClick() {
-        List<PhysicsRayTestResult> results = raycastEntity(physicsHandler.getPhysicsSpace(), player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
         PhysicsCollisionObject obj = results.getFirst().getCollisionObject();

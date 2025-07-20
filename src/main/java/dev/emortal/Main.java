@@ -1,7 +1,5 @@
 package dev.emortal;
 
-import com.jme3.bullet.PhysicsSpace;
-import com.jme3.bullet.collision.PhysicsRayTestResult;
 import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.objects.PhysicsBody;
@@ -9,7 +7,6 @@ import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Vector3f;
 import dev.emortal.commands.*;
 import dev.emortal.objects.BlockRigidBody;
-import dev.emortal.objects.ChainPhysics;
 import dev.emortal.objects.LanternPhysics;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import dev.emortal.tools.*;
@@ -49,7 +46,6 @@ import net.minestom.server.particle.Particle;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.world.DimensionType;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,10 +61,6 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     private static final Set<Point> BLOCKS_IN_SPHERE = SphereUtil.getBlocksInSphere(5);
-
-
-
-    public static boolean paused = false;
 
     public static void main(String[] args) throws Exception {
         LibraryInfo info = new LibraryInfo(
@@ -88,8 +80,11 @@ public class Main {
 
         System.setProperty("minestom.tps", "60");
 
+
         MinecraftServer server = MinecraftServer.init();
         MojangAuth.init();
+
+
 
 
         DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
@@ -124,8 +119,8 @@ public class Main {
             e.getPlayer().getInventory().setItemStack(6, new PlayerSpawnerTool(e.getPlayer(), physicsHandler).getItem());
             e.getPlayer().getInventory().setItemStack(5, new GrabberTool(e.getPlayer(), physicsHandler).getItem());
             e.getPlayer().getInventory().setItemStack(4, new WeldTool(e.getPlayer(), physicsHandler).getItem());
+            e.getPlayer().getInventory().setItemStack(3, new ChainTool(e.getPlayer(), physicsHandler).getItem());
 
-            e.getPlayer().getInventory().setItemStack(3, ItemStack.of(Material.CHAIN));
             e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.TNT));
             e.getPlayer().getInventory().setItemStack(1, ItemStack.of(Material.STONE));
 
@@ -146,18 +141,7 @@ public class Main {
             e.getPlayer().setRespawnPoint(new Pos(0, 20, 0));
         });
 
-        instance.scheduler().buildTask(new Runnable() {
-            long lastRan = System.nanoTime();
-            @Override
-            public void run() {
-                long diff = System.nanoTime() - lastRan;
-                float deltaTime = diff / 1_000_000_000f;
-
-                lastRan = System.nanoTime();
-                if (paused) return;
-                physicsHandler.update(deltaTime);
-            }
-        }).repeat(TaskSchedule.tick(1)).schedule();
+        physicsHandler.start();
 
         global.addListener(ItemDropEvent.class, e -> {
             e.setCancelled(true);
@@ -201,18 +185,6 @@ public class Main {
                 lantern.setInstance();
             }
 
-            if (e.getBlock().compare(Block.CHAIN)) {
-                e.setCancelled(true);
-
-                MinecraftPhysicsObject first = new ChainPhysics(physicsHandler, null, new Vec(0.1f, 0.5f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 0.5f, e.getBlockPosition().blockZ() + 0.5f));
-                MinecraftPhysicsObject lastLink = first;
-                for (int links = 0; links < ChainLengthCommand.CHAIN_LENGTH; links++) {
-                    lastLink = new ChainPhysics(physicsHandler, (PhysicsRigidBody) lastLink.getCollisionObject(), new Vec(0.1f, 0.5f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 0.5f + (ChainLengthCommand.CHAIN_LENGTH-links) * 1.1f, e.getBlockPosition().blockZ() + 0.5f));
-                    lastLink.setInstance();
-                }
-//                Main.paused = true;
-            }
-
             if (e.getBlock().compare(Block.TNT)) {
                 e.setCancelled(true);
 
@@ -236,7 +208,7 @@ public class Main {
 
                         PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
 
-                        Vec velocity = Vec.fromPoint(cube.getEntity().getPosition().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+                        Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
                         cube.getCollisionObject().activate(true);
 
                         Vector3f linearVelocity = new Vector3f();
@@ -252,7 +224,7 @@ public class Main {
                         cube.setInstance();
                         PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
 
-                        Vec velocity = Vec.fromPoint(nearbyBlock.position().sub(blockPos.add(0.5))).normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+                        Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
                         cube.getCollisionObject().activate(true);
                         Vector3f linearVelocity = new Vector3f();
                         cubeRigidBody.getLinearVelocity(linearVelocity);
@@ -295,13 +267,6 @@ public class Main {
         commandManager.register(new TntStrengthCommand());
 
         server.start("0.0.0.0", 25565);
-    }
-
-    public static List<PhysicsRayTestResult> raycastEntity(PhysicsSpace physicsSpace, @NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
-        Point endPoint = startPoint.add(Vec.fromPoint(direction).normalize().mul(maxDistance));
-        List<PhysicsRayTestResult> results = physicsSpace.rayTest(new Vector3f((float) startPoint.x(), (float) startPoint.y(), (float) startPoint.z()), new Vector3f((float) endPoint.x(), (float) endPoint.y(), (float) endPoint.z()));
-
-        return results;
     }
 
 }

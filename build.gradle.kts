@@ -2,7 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     java
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.0.0-rc1"
 }
 
 group = "dev.emortal"
@@ -25,7 +25,7 @@ dependencies {
 
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
-    implementation("net.minestom:minestom-snapshots:1_21_5-1c8431a9ec")
+    implementation("net.minestom:minestom:2025.07.17-1.21.8")
 
     implementation("ch.qos.logback:logback-classic:1.5.18")
 }
