@@ -76,7 +76,7 @@ public class Main {
                 new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
         };
         loader.registerNativeLibraries(libraries).initPlatformLibrary();
-        loader.loadLibrary(LoadingCriterion.INCREMENTAL_LOADING);
+        loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
 
         System.setProperty("minestom.tps", "60");
 
