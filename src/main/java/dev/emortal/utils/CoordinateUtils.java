@@ -1,7 +1,11 @@
 package dev.emortal.utils;
 
-import com.jme3.math.Quaternion;
-import com.jme3.math.Vector3f;
+import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.readonly.QuatArg;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -11,16 +15,39 @@ public class CoordinateUtils {
 
     private CoordinateUtils() {}
 
-    public static @NotNull Vec toVec(Vector3f vector3) {
-        return new Vec(vector3.x, vector3.y, vector3.z);
+    public static @NotNull Vec toVec(Vec3Arg vec3) {
+        return new Vec(vec3.getX(), vec3.getY(), vec3.getZ());
     }
-    public static @NotNull Pos toPos(Vector3f vector3) {
-        return new Pos(vector3.x, vector3.y, vector3.z);
+
+    public static @NotNull Pos toPos(Vec3Arg vec3) {
+        return new Pos(vec3.getX(), vec3.getY(), vec3.getZ());
     }
-    public static @NotNull Vector3f toVector3(Point vec) {
-        return new Vector3f((float)vec.x(), (float)vec.y(), (float)vec.z());
+
+    public static @NotNull Vec toVec(RVec3Arg vec3) {
+        if (Jolt.isDoublePrecision()) {
+            return new Vec((Double) vec3.getX(), (Double) vec3.getY(), (Double) vec3.getZ());
+        } else {
+            return new Vec((Float) vec3.getX(), (Float) vec3.getY(), (Float) vec3.getZ());
+        }
     }
-    public static float[] toFloats(Quaternion rotation) {
+
+    public static @NotNull Pos toPos(RVec3Arg vec3) {
+        if (Jolt.isDoublePrecision()) {
+            return new Pos((Double) vec3.getX(), (Double) vec3.getY(), (Double) vec3.getZ());
+        } else {
+            return new Pos((Float) vec3.getX(), (Float) vec3.getY(), (Float) vec3.getZ());
+        }
+    }
+
+    public static @NotNull Vec3Arg toVec3(Point vec) {
+        return new Vec3((float)vec.x(), (float)vec.y(), (float)vec.z());
+    }
+
+    public static @NotNull RVec3Arg toRVec3(Point vec) {
+        return new RVec3((float)vec.x(), (float)vec.y(), (float)vec.z());
+    }
+
+    public static float[] toFloats(QuatArg rotation) {
         return new float[] { rotation.getX(), rotation.getY(), rotation.getZ(), rotation.getW() };
     }
 }

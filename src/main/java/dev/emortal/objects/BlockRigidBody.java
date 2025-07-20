@@ -1,8 +1,10 @@
 package dev.emortal.objects;
 
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Vector3f;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.BoxShape;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.NoTickingEntity;
 import net.minestom.server.coordinate.Vec;
@@ -13,21 +15,27 @@ import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import static dev.emortal.utils.CoordinateUtils.toVec;
+
 public class BlockRigidBody extends MinecraftPhysicsObject {
 
     private final Block block;
     private final boolean visible;
 
-    public BlockRigidBody(@NotNull MinecraftPhysics mcPhysics, Vector3f position, Vec size, float mass, boolean visible, Block block) {
-        super(mcPhysics, new PhysicsRigidBody(new BoxCollisionShape((float)size.x(), (float)size.y(), (float)size.z()), mass), size);
+    public BlockRigidBody(@NotNull MinecraftPhysics mcPhysics, RVec3Arg position, Vec size, boolean visible, Block block) {
+        super(
+                mcPhysics,
+                new BodyCreationSettings()
+                        .setMotionType(EMotionType.Dynamic)
+                        .setObjectLayer(MinecraftPhysics.objLayerMoving)
+                        .setShape(new BoxShape((float)size.x(), (float)size.y(), (float)size.z()))
+                        .setAngularDamping(0.1f)
+                        .setLinearDamping(0.3f)
+                        .setPosition(position)
+        );
 
         this.block = block;
         this.visible = visible;
-
-        var rigidBody = (PhysicsRigidBody) getCollisionObject();
-        rigidBody.setAngularDamping(0.1f);
-        rigidBody.setLinearDamping(0.3f);
-        rigidBody.setPhysicsLocation(position);
     }
 
     @Override
@@ -38,13 +46,15 @@ public class BlockRigidBody extends MinecraftPhysicsObject {
         // although causes issues with certain items, it works for most
         Entity entity = new NoTickingEntity(EntityType.ITEM_DISPLAY);
 
-        entity.setBoundingBox(getSize().x(), getSize().y(), getSize().z());
+        BoxShape shape = (BoxShape) getBody().getShape();
+        Vec3 halfExtents = shape.getHalfExtent();
+        entity.setBoundingBox(halfExtents.getX(), halfExtents.getY(), halfExtents.getZ());
 
         entity.editEntityMeta(ItemDisplayMeta.class, meta -> {
             meta.setWidth(2);
             meta.setHeight(2);
             meta.setItemStack(ItemStack.of(block.registry().material()));
-            meta.setScale(getSize().mul(2));
+            meta.setScale(toVec(halfExtents).mul(2));
         });
 
         return entity;

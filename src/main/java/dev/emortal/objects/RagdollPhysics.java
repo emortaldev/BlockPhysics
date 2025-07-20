@@ -1,10 +1,6 @@
 package dev.emortal.objects;
 
-import com.jme3.bullet.RotationOrder;
-import com.jme3.bullet.joints.New6Dof;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Matrix3f;
-import com.jme3.math.Vector3f;
+/*
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.NoTickingEntity;
 import dev.emortal.PlayerDisplayPart;
@@ -71,7 +67,7 @@ public class RagdollPhysics extends BlockRigidBody {
 
             New6Dof joint = new New6Dof(torso, rigidBody, firstThing.mult((float) PLAYER_SIZE), secondThing.mult((float) PLAYER_SIZE), Matrix3f.IDENTITY, Matrix3f.IDENTITY, RotationOrder.XYZ);
             joint.setBreakingImpulseThreshold(60);
-            mcPhysics.getPhysicsSpace().add(joint);
+            mcPhysics.getPhysicsSystem().add(joint);
             addRelated(joint);
         }
     }
@@ -106,3 +102,4 @@ public class RagdollPhysics extends BlockRigidBody {
     }
 
 }
+*/

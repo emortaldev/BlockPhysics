@@ -1,10 +1,6 @@
 package dev.emortal.tools;
 
-import com.jme3.bullet.objects.PhysicsRigidBody;
 import dev.emortal.MinecraftPhysics;
-import dev.emortal.PlayerDisplayPart;
-import dev.emortal.objects.MinecraftPhysicsObject;
-import dev.emortal.objects.RagdollPhysics;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -21,7 +17,6 @@ import net.minestom.server.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
 
 import static dev.emortal.commands.PlayerSizeCommand.PLAYER_SIZE;
-import static dev.emortal.utils.CoordinateUtils.toVector3;
 
 public class PlayerSpawnerTool extends Tool {
 
@@ -57,21 +52,21 @@ public class PlayerSpawnerTool extends Tool {
 //            Vector3 limbSize = new Vector3(2.0f/16.0f, 6.0f/16.0f, 2.0f/16.0f);
         Vec limbSize = new Vec(1f/16.0f, 6.0f/16.0f, 1f/16.0f).mul(PLAYER_SIZE);
 
-        MinecraftPhysicsObject torso = new RagdollPhysics(physicsHandler, player,null, PlayerDisplayPart.TORSO, toVector3(startPos), torsoSize, 1);
-        PhysicsRigidBody torsoBody = (PhysicsRigidBody) torso.getCollisionObject();
-        MinecraftPhysicsObject head = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.HEAD, toVector3(startPos.add(new Vec(0, 0.62, 0).mul(PLAYER_SIZE))), headSize, 1);
-        MinecraftPhysicsObject rightArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_ARM, toVector3(startPos.add(new Vec(0.37, 0, 0).mul(PLAYER_SIZE))), limbSize, 1);
-        MinecraftPhysicsObject leftArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_ARM, toVector3(startPos.add(new Vec(-0.37, 0, 0).mul(PLAYER_SIZE))), limbSize, 1);
-        MinecraftPhysicsObject rightLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_LEG, toVector3(startPos.add(new Vec(0.13, -0.72, 0).mul(PLAYER_SIZE))), limbSize, 1);
-        MinecraftPhysicsObject leftLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_LEG, toVector3(startPos.add(new Vec(-0.13, -0.72, 0).mul(PLAYER_SIZE))), limbSize, 1);
+//        MinecraftPhysicsObject torso = new RagdollPhysics(physicsHandler, player,null, PlayerDisplayPart.TORSO, toVec3(startPos), torsoSize, 1);
+//        PhysicsRigidBody torsoBody = (PhysicsRigidBody) torso.getCollisionObject();
+//        MinecraftPhysicsObject head = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.HEAD, toVec3(startPos.add(new Vec(0, 0.62, 0).mul(PLAYER_SIZE))), headSize, 1);
+//        MinecraftPhysicsObject rightArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_ARM, toVec3(startPos.add(new Vec(0.37, 0, 0).mul(PLAYER_SIZE))), limbSize, 1);
+//        MinecraftPhysicsObject leftArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_ARM, toVec3(startPos.add(new Vec(-0.37, 0, 0).mul(PLAYER_SIZE))), limbSize, 1);
+//        MinecraftPhysicsObject rightLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_LEG, toVec3(startPos.add(new Vec(0.13, -0.72, 0).mul(PLAYER_SIZE))), limbSize, 1);
+//        MinecraftPhysicsObject leftLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_LEG, toVec3(startPos.add(new Vec(-0.13, -0.72, 0).mul(PLAYER_SIZE))), limbSize, 1);
 //        Main.paused = true;
 
-        torso.setInstance();
-        head.setInstance();
-        rightArm.setInstance();
-        leftArm.setInstance();
-        rightLeg.setInstance();
-        leftLeg.setInstance();
+//        torso.setInstance();
+//        head.setInstance();
+//        rightArm.setInstance();
+//        leftArm.setInstance();
+//        rightLeg.setInstance();
+//        leftLeg.setInstance();
     }
 
     @Override

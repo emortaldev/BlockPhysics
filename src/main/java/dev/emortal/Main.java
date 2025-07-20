@@ -1,13 +1,6 @@
 package dev.emortal;
 
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.collision.shapes.CollisionShape;
-import com.jme3.bullet.objects.PhysicsBody;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Vector3f;
 import dev.emortal.commands.*;
-import dev.emortal.objects.BlockRigidBody;
-import dev.emortal.objects.LanternPhysics;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import dev.emortal.tools.*;
 import electrostatic4j.snaploader.LibraryInfo;
@@ -24,9 +17,6 @@ import net.minestom.server.ServerFlag;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
-import net.minestom.server.coordinate.Vec;
-import net.minestom.server.entity.Entity;
-import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.GameMode;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.item.ItemDropEvent;
@@ -37,24 +27,15 @@ import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.extras.MojangAuth;
 import net.minestom.server.instance.InstanceContainer;
-import net.minestom.server.instance.batch.AbsoluteBlockBatch;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.network.packet.server.play.ExplosionPacket;
-import net.minestom.server.particle.Particle;
-import net.minestom.server.sound.SoundEvent;
-import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.world.DimensionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-
-import static dev.emortal.utils.CoordinateUtils.toVector3;
 
 public class Main {
 
@@ -62,21 +43,24 @@ public class Main {
 
     private static final Set<Point> BLOCKS_IN_SPHERE = SphereUtil.getBlocksInSphere(5);
 
-    public static void main(String[] args) throws Exception {
-        LibraryInfo info = new LibraryInfo(
-                new DirectoryPath("linux/x86-64/com/github/stephengold"),
-                "bulletjme", DirectoryPath.USER_DIR);
+    public static void main(String[] args) {
+        LibraryInfo info = new LibraryInfo(null, "joltjni", DirectoryPath.USER_DIR);
         NativeBinaryLoader loader = new NativeBinaryLoader(info);
-        NativeDynamicLibrary[] libraries = new NativeDynamicLibrary[]{
-//                new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
-//                new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
-                new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
-//                new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
-//                new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
-                new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
+        NativeDynamicLibrary[] libraries = {
+//                new NativeDynamicLibrary("linux/aarch64/com/github/stephengold", PlatformPredicate.LINUX_ARM_64),
+//                new NativeDynamicLibrary("linux/armhf/com/github/stephengold", PlatformPredicate.LINUX_ARM_32),
+                new NativeDynamicLibrary("linux/x86-64/com/github/stephengold", PlatformPredicate.LINUX_X86_64),
+//                new NativeDynamicLibrary("osx/aarch64/com/github/stephengold", PlatformPredicate.MACOS_ARM_64),
+//                new NativeDynamicLibrary("osx/x86-64/com/github/stephengold", PlatformPredicate.MACOS_X86_64),
+                new NativeDynamicLibrary("windows/x86-64/com/github/stephengold", PlatformPredicate.WIN_X86_64)
         };
         loader.registerNativeLibraries(libraries).initPlatformLibrary();
-        loader.loadLibrary(LoadingCriterion.INCREMENTAL_LOADING);
+        try {
+            loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Failed to load a Jolt-JNI native library!");
+        }
 
         System.setProperty("minestom.tps", "60");
 
@@ -124,24 +108,20 @@ public class Main {
             e.getPlayer().getInventory().setItemStack(2, ItemStack.of(Material.TNT));
             e.getPlayer().getInventory().setItemStack(1, ItemStack.of(Material.STONE));
 
-            CollisionShape boxShape = new BoxCollisionShape((float) (e.getPlayer().getBoundingBox().width()/2f), (float) (e.getPlayer().getBoundingBox().height()/2f), (float) (e.getPlayer().getBoundingBox().depth()/2f));
-            PhysicsRigidBody playerRigidBody = new PhysicsRigidBody(boxShape, PhysicsRigidBody.massForStatic);
-            physicsHandler.getPhysicsSpace().addCollisionObject(playerRigidBody);
-
-            e.getPlayer().setTag(MinecraftPhysics.PLAYER_RIGID_BODY_TAG, playerRigidBody);
-
-            e.getPlayer().scheduler().buildTask(() -> {
-                playerRigidBody.activate();
-                playerRigidBody.setPhysicsLocation(toVector3(e.getPlayer().getPosition().add(0, 1, 0)));
-            }).repeat(TaskSchedule.tick(1)).schedule();
+//            CollisionShape boxShape = new BoxCollisionShape((float) (e.getPlayer().getBoundingBox().width()/2f), (float) (e.getPlayer().getBoundingBox().height()/2f), (float) (e.getPlayer().getBoundingBox().depth()/2f));
+//            PhysicsRigidBody playerRigidBody = new PhysicsRigidBody(boxShape, PhysicsRigidBody.massForStatic);
+//            physicsHandler.getPhysicsSystem().addCollisionObject(playerRigidBody);
+//            e.getPlayer().setTag(MinecraftPhysics.PLAYER_RIGID_BODY_TAG, playerRigidBody);
+//            e.getPlayer().scheduler().buildTask(() -> {
+//                playerRigidBody.activate();
+//                playerRigidBody.setPhysicsLocation(toVec3(e.getPlayer().getPosition().add(0, 1, 0)));
+//            }).repeat(TaskSchedule.tick(1)).schedule();
         });
 
         global.addListener(AsyncPlayerConfigurationEvent.class, e -> {
             e.setSpawningInstance(instance);
             e.getPlayer().setRespawnPoint(new Pos(0, 20, 0));
         });
-
-        physicsHandler.start();
 
         global.addListener(ItemDropEvent.class, e -> {
             e.setCancelled(true);
@@ -178,78 +158,77 @@ public class Main {
 //                new TrapdoorPhysics(physicsHandler, null, instance, new Vector3f(0.5f, 0.5f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 1.5f, e.getBlockPosition().blockZ() + 0.5f));
 //            }
 
-            if (e.getBlock().compare(Block.LANTERN)) {
-                e.setCancelled(true);
+//            if (e.getBlock().compare(Block.LANTERN)) {
+//                e.setCancelled(true);
+//
+//                LanternPhysics lantern = new LanternPhysics(physicsHandler, null, new Vec(0.1f, 0.4f, 0.1f), 1, new Vec3(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 1.5f, e.getBlockPosition().blockZ() + 0.5f));
+//                lantern.setInstance();
+//            }
 
-                LanternPhysics lantern = new LanternPhysics(physicsHandler, null, new Vec(0.1f, 0.4f, 0.1f), 1, new Vector3f(e.getBlockPosition().blockX() + 0.5f, e.getBlockPosition().blockY() + 1.5f, e.getBlockPosition().blockZ() + 0.5f));
-                lantern.setInstance();
-            }
-
-            if (e.getBlock().compare(Block.TNT)) {
-                e.setCancelled(true);
-
-                Entity entity = new Entity(EntityType.TNT);
-//                entity.editEntityMeta(PrimedTntMeta.class, meta -> {
-//                    meta.setFuseTime(60);
-//                });
-                // TODO: Causes network protocol error - minestom bug
-                entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
-
-                instance.scheduler().buildTask(() -> {
-                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), Vec.ZERO, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE);
-                    instance.sendGroupedPacket(packet);
-                    entity.remove();
-
-                    ThreadLocalRandom rand = ThreadLocalRandom.current();
-
-                    for (MinecraftPhysicsObject cube : physicsHandler.getObjects()) {
-                        if (cube.getEntity() == null) continue;
-                        if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
-
-                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
-
-                        Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
-                        cube.getCollisionObject().activate(true);
-
-                        Vector3f linearVelocity = new Vector3f();
-                        cubeRigidBody.getLinearVelocity(linearVelocity);
-                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVector3(velocity)));
-                        cubeRigidBody.setAngularVelocity(toVector3(velocity)); // probably completely wrong but it looks nice
-                    }
-
-                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
-                    AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
-                    for (WorldBlock nearbyBlock : nearbyBlocks) {
-                        var cube = new BlockRigidBody(physicsHandler, toVector3(nearbyBlock.position()), new Vec(0.5), 1, true, nearbyBlock.block());
-                        cube.setInstance();
-                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
-
-                        Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
-                        cube.getCollisionObject().activate(true);
-                        Vector3f linearVelocity = new Vector3f();
-                        cubeRigidBody.getLinearVelocity(linearVelocity);
-                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVector3(velocity)));
-                        cubeRigidBody.setAngularVelocity(toVector3(velocity)); // probably completely wrong but it looks nice
-                        batch.setBlock(nearbyBlock.position(), Block.AIR);
-
-                        Block block = instance.getBlock(nearbyBlock.position().sub(0.5));
-                        MinecraftPhysicsObject physicsBlock = block.getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
-                        if (physicsBlock != null) {
-                            physicsBlock.destroy();
-                        }
-                    }
-                    batch.apply(instance, null);
-                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
-            }
-
+//            if (e.getBlock().compare(Block.TNT)) {
+//                e.setCancelled(true);
+//
+//                Entity entity = new Entity(EntityType.TNT);
+////                entity.editEntityMeta(PrimedTntMeta.class, meta -> {
+////                    meta.setFuseTime(60);
+////                });
+//                entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
+//
+//                instance.scheduler().buildTask(() -> {
+//                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), Vec.ZERO, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE);
+//                    instance.sendGroupedPacket(packet);
+//                    entity.remove();
+//
+//                    ThreadLocalRandom rand = ThreadLocalRandom.current();
+//
+//                    for (MinecraftPhysicsObject cube : physicsHandler.getObjects()) {
+//                        if (cube.getEntity() == null) continue;
+//                        if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
+//
+//                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
+//
+//                        Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+//                        cube.getCollisionObject().activate(true);
+//
+//                        Vector3f linearVelocity = new Vector3f();
+//                        cubeRigidBody.getLinearVelocity(linearVelocity);
+//                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVec3(velocity)));
+//                        cubeRigidBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
+//                    }
+//
+//                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
+//                    AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
+//                    for (WorldBlock nearbyBlock : nearbyBlocks) {
+//                        var cube = new BlockRigidBody(physicsHandler, toVec3(nearbyBlock.position()), new Vec(0.5), 1, true, nearbyBlock.block());
+//                        cube.setInstance();
+//                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
+//
+//                        Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+//                        cube.getCollisionObject().activate(true);
+//                        Vector3f linearVelocity = new Vector3f();
+//                        cubeRigidBody.getLinearVelocity(linearVelocity);
+//                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVec3(velocity)));
+//                        cubeRigidBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
+//                        batch.setBlock(nearbyBlock.position(), Block.AIR);
+//
+//                        Block block = instance.getBlock(nearbyBlock.position().sub(0.5));
+//                        MinecraftPhysicsObject physicsBlock = block.getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
+//                        if (physicsBlock != null) {
+//                            physicsBlock.destroy();
+//                        }
+//                    }
+//                    batch.apply(instance, null);
+//                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
+//            }
 
 
-            if (!e.isCancelled()) {
-                MinecraftPhysicsObject object = new BlockRigidBody(physicsHandler, toVector3(blockPos.add(0.5)), new Vec(0.5), PhysicsBody.massForStatic, false, Block.BLUE_STAINED_GLASS);
-                object.setInstance();
 
-                e.setBlock(e.getBlock().withTag(MinecraftPhysics.PHYSICS_BLOCK_TAG, object));
-            }
+//            if (!e.isCancelled()) {
+//                MinecraftPhysicsObject object = new BlockRigidBody(physicsHandler, toVec3(blockPos.add(0.5)), new Vec(0.5), PhysicsBody.massForStatic, false, Block.BLUE_STAINED_GLASS);
+//                object.setInstance();
+//
+//                e.setBlock(e.getBlock().withTag(MinecraftPhysics.PHYSICS_BLOCK_TAG, object));
+//            }
         });
 
         global.addListener(PlayerBlockBreakEvent.class, e -> {

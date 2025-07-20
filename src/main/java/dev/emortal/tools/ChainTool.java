@@ -1,9 +1,6 @@
 package dev.emortal.tools;
 
-import com.jme3.bullet.objects.PhysicsRigidBody;
 import dev.emortal.MinecraftPhysics;
-import dev.emortal.objects.ChainPhysics;
-import dev.emortal.objects.MinecraftPhysicsObject;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -14,8 +11,6 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
-
-import static dev.emortal.utils.CoordinateUtils.toVector3;
 
 public class ChainTool extends Tool {
 
@@ -45,13 +40,13 @@ public class ChainTool extends Tool {
         double holdDistance = 4;
         Vec spawnPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdDistance)).asVec();
 
-        MinecraftPhysicsObject lastLink = null;
-        for (int links = 0; links < 10; links++) {
-            PhysicsRigidBody parent = null;
-            if (lastLink != null) parent = (PhysicsRigidBody) lastLink.getCollisionObject();
-            lastLink = new ChainPhysics(physicsHandler, parent, new Vec(0.1f, 0.5f, 0.1f), 1, toVector3(spawnPos.add(0, (10 - links) * 1.04, 0)));
-            lastLink.setInstance();
-        }
+//        MinecraftPhysicsObject lastLink = null;
+//        for (int links = 0; links < 10; links++) {
+//            PhysicsRigidBody parent = null;
+//            if (lastLink != null) parent = (PhysicsRigidBody) lastLink.getCollisionObject();
+//            lastLink = new ChainPhysics(physicsHandler, parent, new Vec(0.1f, 0.5f, 0.1f), 1, toVec3(spawnPos.add(0, (10 - links) * 1.04, 0)));
+//            lastLink.setInstance();
+//        }
     }
 
     @Override

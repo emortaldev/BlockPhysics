@@ -1,10 +1,6 @@
 package dev.emortal.objects;
 
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.collision.shapes.CollisionShape;
-import com.jme3.bullet.joints.ConeJoint;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Vector3f;
+/*
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.NoTickingEntity;
 import net.minestom.server.coordinate.Vec;
@@ -32,14 +28,14 @@ public class LanternPhysics extends MinecraftPhysicsObject {
             CollisionShape parentBoxShape = new BoxCollisionShape(0.1f);
             PhysicsRigidBody parentlessRigidBody = new PhysicsRigidBody(parentBoxShape, PhysicsRigidBody.massForStatic);
             parentlessRigidBody.setPhysicsLocation(jointPos);
-            mcPhysics.getPhysicsSpace().addCollisionObject(parentlessRigidBody);
+            mcPhysics.getPhysicsSystem().addCollisionObject(parentlessRigidBody);
             parent = parentlessRigidBody;
             addRelated(parent);
         }
 
         ConeJoint joint = new ConeJoint(parent, rigidBody, new Vector3f(0, -0.5f, 0), new Vector3f(0, 0.5f, 0));
         addRelated(joint);
-        mcPhysics.getPhysicsSpace().addJoint(joint);
+        mcPhysics.getPhysicsSystem().addJoint(joint);
     }
 
     @Override
@@ -59,4 +55,4 @@ public class LanternPhysics extends MinecraftPhysicsObject {
         return entity;
     }
 
-}
+}*/

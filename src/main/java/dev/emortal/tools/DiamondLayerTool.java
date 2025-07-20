@@ -1,6 +1,6 @@
 package dev.emortal.tools;
 
-import com.jme3.math.Vector3f;
+import com.github.stephengold.joltjni.RVec3;
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.objects.BlockRigidBody;
 import net.kyori.adventure.sound.Sound;
@@ -40,9 +40,12 @@ public class DiamondLayerTool extends Tool {
     public void onRightClick() {
         player.playSound(Sound.sound(SoundEvent.ENTITY_VILLAGER_AMBIENT, Sound.Source.MASTER, 1f, 1f), Sound.Emitter.self());
 
+//        BlockRigidBody rigidBody = new BlockRigidBody(physicsHandler, new RVec3(0, 20, 0), new Vec(0.5), true, Block.DIAMOND_BLOCK);
+//        rigidBody.setInstance();
+
         for (int x = -5; x <= 5; x++) {
             for (int z = -5; z <= 5; z++) {
-                BlockRigidBody rigidBody = new BlockRigidBody(physicsHandler, new Vector3f(x, 20, z), new Vec(0.5), 1, true, Block.DIAMOND_BLOCK);
+                BlockRigidBody rigidBody = new BlockRigidBody(physicsHandler, new RVec3(x, 20, z), new Vec(0.5), true, Block.DIAMOND_BLOCK);
                 rigidBody.setInstance();
             }
         }

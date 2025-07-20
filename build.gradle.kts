@@ -17,13 +17,14 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.stephengold:Libbulletjme-Windows64:22.0.1")
+    implementation("com.github.stephengold:jolt-jni-Windows64:2.0.1")
 
     // native libraries:
-    runtimeOnly("com.github.stephengold:Libbulletjme-Linux64:22.0.1:SpDebug")
-    runtimeOnly("com.github.stephengold:Libbulletjme-Windows64:22.0.1:SpDebug")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:ReleaseSp")
 
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
+    runtimeOnly("com.github.oshi:oshi-core:6.8.1")
 
     implementation("net.minestom:minestom:2025.07.17-1.21.8")
 

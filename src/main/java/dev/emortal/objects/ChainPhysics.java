@@ -1,11 +1,6 @@
 package dev.emortal.objects;
 
-import com.jme3.bullet.RotationOrder;
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.joints.New6Dof;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Matrix3f;
-import com.jme3.math.Vector3f;
+/*
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.NoTickingEntity;
 import net.minestom.server.coordinate.Vec;
@@ -31,7 +26,7 @@ public class ChainPhysics extends MinecraftPhysicsObject {
         New6Dof joint = new New6Dof(parent, rigidBody, new Vector3f(0, -0.52f, 0), new Vector3f(0, 0.52f, 0), Matrix3f.IDENTITY, Matrix3f.IDENTITY, RotationOrder.XYZ);
         joint.setBreakingImpulseThreshold(70);
         joint.setCollisionBetweenLinkedBodies(false);
-        mcPhysics.getPhysicsSpace().addJoint(joint);
+        mcPhysics.getPhysicsSystem().addJoint(joint);
     }
 
     @Override
@@ -56,3 +51,4 @@ public class ChainPhysics extends MinecraftPhysicsObject {
     }
 
 }
+*/
