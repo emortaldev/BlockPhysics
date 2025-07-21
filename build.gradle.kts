@@ -10,16 +10,13 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
-    maven(url = "https://jitpack.io")
-    maven {
-        url = uri("https://repo.emortal.dev/snapshots")
-    }
+    maven("https://jitpack.io")
 }
 
 dependencies {
     implementation("com.github.stephengold:jolt-jni-Windows64:2.0.1")
-    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:DebugDp")
-//    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugDp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseSp")
+//    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugSp")
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
     runtimeOnly("com.github.oshi:oshi-core:6.8.1")
 

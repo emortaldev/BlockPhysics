@@ -122,6 +122,9 @@ public class MinecraftPhysics {
         // Minecraft: -31.36f
         physicsSystem.setGravity(new Vec3(0, -17f, 0));
 
+        // Currently quite slow
+//        physicsSystem.setContactListener(new MCContactListener(this));
+
         addFloorPlane();
     }
 
@@ -159,6 +162,14 @@ public class MinecraftPhysics {
 
     public @Nullable Body getBodyById(int id) {
         return new BodyLockRead(physicsSystem.getBodyLockInterfaceNoLock(), id).getBody();
+    }
+
+    public @Nullable Body getBodyByVa(long va) { // TODO: probably a proper way to do this...
+        for (MinecraftPhysicsObject object : objects) {
+            long bodyVa = object.getBody().va();
+            if (bodyVa == va) return object.getBody();
+        }
+        return null;
     }
 
     public void addObject(MinecraftPhysicsObject object) {
