@@ -53,6 +53,8 @@ public class BlockRigidBody extends MinecraftPhysicsObject {
         entity.editEntityMeta(ItemDisplayMeta.class, meta -> {
             meta.setWidth(2);
             meta.setHeight(2);
+            meta.setTransformationInterpolationDuration(1);
+            meta.setPosRotInterpolationDuration(1);
             meta.setItemStack(ItemStack.of(block.registry().material()));
             meta.setScale(toVec(halfExtents).mul(2));
         });

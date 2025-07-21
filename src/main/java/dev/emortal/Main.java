@@ -1,6 +1,9 @@
 package dev.emortal;
 
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.Vec3;
 import dev.emortal.commands.*;
+import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import dev.emortal.tools.*;
 import electrostatic4j.snaploader.LibraryInfo;
@@ -17,7 +20,11 @@ import net.minestom.server.ServerFlag;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.coordinate.Vec;
+import net.minestom.server.entity.Entity;
+import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.GameMode;
+import net.minestom.server.entity.metadata.other.PrimedTntMeta;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.item.ItemDropEvent;
 import net.minestom.server.event.player.AsyncPlayerConfigurationEvent;
@@ -27,15 +34,24 @@ import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.extras.MojangAuth;
 import net.minestom.server.instance.InstanceContainer;
+import net.minestom.server.instance.batch.AbsoluteBlockBatch;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.network.packet.server.play.ExplosionPacket;
+import net.minestom.server.particle.Particle;
+import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.world.DimensionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static dev.emortal.utils.CoordinateUtils.*;
 
 public class Main {
 
@@ -64,12 +80,8 @@ public class Main {
 
         System.setProperty("minestom.tps", "60");
 
-
         MinecraftServer server = MinecraftServer.init();
         MojangAuth.init();
-
-
-
 
         DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
         var fullbright = MinecraftServer.getDimensionTypeRegistry().register(Key.key("fullbright"), fullbrightDimension);
@@ -165,70 +177,61 @@ public class Main {
 //                lantern.setInstance();
 //            }
 
-//            if (e.getBlock().compare(Block.TNT)) {
-//                e.setCancelled(true);
-//
-//                Entity entity = new Entity(EntityType.TNT);
-////                entity.editEntityMeta(PrimedTntMeta.class, meta -> {
-////                    meta.setFuseTime(60);
-////                });
-//                entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
-//
-//                instance.scheduler().buildTask(() -> {
-//                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), Vec.ZERO, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE);
-//                    instance.sendGroupedPacket(packet);
-//                    entity.remove();
-//
-//                    ThreadLocalRandom rand = ThreadLocalRandom.current();
-//
-//                    for (MinecraftPhysicsObject cube : physicsHandler.getObjects()) {
-//                        if (cube.getEntity() == null) continue;
-//                        if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
-//
-//                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
-//
-//                        Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
-//                        cube.getCollisionObject().activate(true);
-//
-//                        Vector3f linearVelocity = new Vector3f();
-//                        cubeRigidBody.getLinearVelocity(linearVelocity);
-//                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVec3(velocity)));
-//                        cubeRigidBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
-//                    }
-//
-//                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
-//                    AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
-//                    for (WorldBlock nearbyBlock : nearbyBlocks) {
-//                        var cube = new BlockRigidBody(physicsHandler, toVec3(nearbyBlock.position()), new Vec(0.5), 1, true, nearbyBlock.block());
-//                        cube.setInstance();
-//                        PhysicsRigidBody cubeRigidBody = (PhysicsRigidBody) cube.getCollisionObject();
-//
-//                        Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
-//                        cube.getCollisionObject().activate(true);
-//                        Vector3f linearVelocity = new Vector3f();
-//                        cubeRigidBody.getLinearVelocity(linearVelocity);
-//                        cubeRigidBody.setLinearVelocity(linearVelocity.add(toVec3(velocity)));
-//                        cubeRigidBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
-//                        batch.setBlock(nearbyBlock.position(), Block.AIR);
-//
-//                        Block block = instance.getBlock(nearbyBlock.position().sub(0.5));
-//                        MinecraftPhysicsObject physicsBlock = block.getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
-//                        if (physicsBlock != null) {
-//                            physicsBlock.destroy();
-//                        }
-//                    }
-//                    batch.apply(instance, null);
-//                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
-//            }
+            if (e.getBlock().compare(Block.TNT)) {
+                e.setCancelled(true);
 
+                Entity entity = new Entity(EntityType.TNT);
+                entity.editEntityMeta(PrimedTntMeta.class, meta -> {
+                    meta.setFuseTime(60);
+                });
+                entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
 
+                instance.scheduler().buildTask(() -> {
+                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), Vec.ZERO, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE);
+                    instance.sendGroupedPacket(packet);
+                    entity.remove();
 
-//            if (!e.isCancelled()) {
-//                MinecraftPhysicsObject object = new BlockRigidBody(physicsHandler, toVec3(blockPos.add(0.5)), new Vec(0.5), PhysicsBody.massForStatic, false, Block.BLUE_STAINED_GLASS);
-//                object.setInstance();
-//
-//                e.setBlock(e.getBlock().withTag(MinecraftPhysics.PHYSICS_BLOCK_TAG, object));
-//            }
+                    ThreadLocalRandom rand = ThreadLocalRandom.current();
+
+                    for (MinecraftPhysicsObject cube : physicsHandler.getObjects()) {
+                        if (cube.getEntity() == null) continue;
+                        if (cube.getEntity().getPosition().distanceSquared(blockPos.add(0.5)) > 5*5) continue;
+
+                        Body body = cube.getBody();
+
+                        physicsHandler.getBodyInterface().activateBody(body.getId());
+
+                        Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+
+                        Vec3 linearVelocity = body.getLinearVelocity();
+                        body.setLinearVelocity(toVec3(velocity.add(toVec(linearVelocity))));
+                        body.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
+                    }
+
+                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
+                    AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
+                    for (WorldBlock nearbyBlock : nearbyBlocks) {
+                        var cube = new BlockRigidBody(physicsHandler, toRVec3(nearbyBlock.position()), new Vec(0.5), true, nearbyBlock.block());
+                        cube.setInstance();
+                        Body cubeBody = cube.getBody();
+                        physicsHandler.getBodyInterface().activateBody(cubeBody.getId());
+
+                        Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
+
+                        Vec3 linearVelocity = cubeBody.getLinearVelocity();
+                        cubeBody.setLinearVelocity(toVec3(velocity.add(toVec(linearVelocity))));
+                        cubeBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
+                        batch.setBlock(nearbyBlock.position(), Block.AIR);
+
+                        Block block = instance.getBlock(nearbyBlock.position().sub(0.5));
+                        MinecraftPhysicsObject physicsBlock = block.getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
+                        if (physicsBlock != null) {
+                            physicsBlock.destroy();
+                        }
+                    }
+                    batch.apply(instance, null);
+                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
+            }
         });
 
         global.addListener(PlayerBlockBreakEvent.class, e -> {

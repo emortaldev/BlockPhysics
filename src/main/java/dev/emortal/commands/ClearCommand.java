@@ -1,11 +1,5 @@
 package dev.emortal.commands;
 
-import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EActivation;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
-import com.github.stephengold.joltjni.readonly.ConstPlane;
-import com.github.stephengold.joltjni.readonly.ConstShape;
-import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import dev.emortal.MinecraftPhysics;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.entity.Entity;
@@ -18,7 +12,7 @@ public class ClearCommand extends Command {
         setDefaultExecutor((sender, ctx) -> {
             if (!(sender instanceof Player player)) return;
 
-//            physicsHandler.getPhysicsSystem().removeAllConstraints();
+            physics.getPhysicsSystem().removeAllConstraints();
             physics.getPhysicsSystem().destroyAllBodies();
 
             for (Entity entity : player.getInstance().getEntities()) {
@@ -26,21 +20,10 @@ public class ClearCommand extends Command {
                 entity.remove();
             }
 
-            physics.getObjects().clear();
+            physics.clear();
 
             // Re-add the floor
-            // add static plane
-            BodyInterface bi = physics.getBodyInterface();
-            float groundY = 0f;
-            Vec3Arg normal = Vec3.sAxisY();
-            ConstPlane plane = new Plane(normal, -groundY);
-            ConstShape floorShape = new PlaneShape(plane);
-            BodyCreationSettings bcs = new BodyCreationSettings();
-            bcs.setMotionType(EMotionType.Static);
-            bcs.setObjectLayer(MinecraftPhysics.objLayerNonMoving);
-            bcs.setShape(floorShape);
-            Body floor = bi.createBody(bcs);
-            bi.addBody(floor, EActivation.DontActivate);
+            physics.addFloorPlane();
 
 //            for (Player player1 : player.getInstance().getPlayers()) {
 //                CollisionShape boxShape = new BoxCollisionShape((float) (player1.getBoundingBox().width()/2f), (float) (player1.getBoundingBox().height()/2f), (float) (player1.getBoundingBox().depth()/2f));

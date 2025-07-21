@@ -1,9 +1,6 @@
 package dev.emortal.objects;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import dev.emortal.MinecraftPhysics;
 import net.minestom.server.entity.Entity;
@@ -11,14 +8,15 @@ import net.minestom.server.entity.metadata.display.AbstractDisplayMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static dev.emortal.utils.CoordinateUtils.*;
 
 public abstract class MinecraftPhysicsObject {
 
-    private final List<Integer> relatedBodies = new ArrayList<>();
+    private final List<Integer> relatedBodies = new CopyOnWriteArrayList<>();
+    private final List<Constraint> constraints = new CopyOnWriteArrayList<>();
 
     private final @NotNull MinecraftPhysics mcPhysics;
     private final @NotNull BodyCreationSettings bodySettings;
@@ -45,12 +43,26 @@ public abstract class MinecraftPhysicsObject {
         this.relatedBodies.add(related.getId());
     }
 
+    public void addRelatedConstraint(Constraint related) {
+        this.constraints.add(related);
+    }
+
+    public void removeRelatedConstraint(Constraint related) {
+        this.constraints.remove(related);
+    }
+
     public void destroy() {
+        for (Constraint constraint : constraints) {
+            mcPhysics.removeConstraint(constraint);
+        }
+
         for (int relatedObject : relatedBodies) {
             mcPhysics.getPhysicsSystem().getBodyInterface().removeBody(relatedObject);
+            mcPhysics.getPhysicsSystem().getBodyInterface().destroyBody(relatedObject);
         }
 
         mcPhysics.getPhysicsSystem().getBodyInterface().removeBody(body.getId());
+        mcPhysics.getPhysicsSystem().getBodyInterface().destroyBody(body.getId());
         mcPhysics.removeObject(this);
         if (entity != null) {
             entity.remove();
@@ -72,8 +84,6 @@ public abstract class MinecraftPhysicsObject {
         if (!entity.isActive()) return;
 
         entity.editEntityMeta(AbstractDisplayMeta.class, meta -> {
-            meta.setTransformationInterpolationDuration(1);
-            meta.setPosRotInterpolationDuration(1);
             meta.setTransformationInterpolationStartDelta(0);
 
             RVec3 rVec3 = new RVec3();

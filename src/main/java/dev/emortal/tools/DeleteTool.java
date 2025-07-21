@@ -1,13 +1,19 @@
 package dev.emortal.tools;
 
+import com.github.stephengold.joltjni.Body;
 import dev.emortal.MinecraftPhysics;
+import dev.emortal.objects.MinecraftPhysicsObject;
+import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.minestom.server.entity.Player;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 public class DeleteTool extends Tool {
 
@@ -32,18 +38,18 @@ public class DeleteTool extends Tool {
 
     @Override
     public void onRightClick() {
-//        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
-//        if (results.isEmpty()) return;
-//
-//        PhysicsCollisionObject obj = results.getFirst().getCollisionObject();
-//
-//        if (obj == null) return;
-//
-//        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
-//        if (mcObj != null) {
-//            player.playSound(Sound.sound(SoundEvent.BLOCK_STONE_BREAK, Sound.Source.MASTER, 0.5f, 0.6f), Sound.Emitter.self());
-//            mcObj.destroy();
-//        }
+        List<Body> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        if (results.isEmpty()) return;
+
+        Body obj = results.getFirst();
+
+        if (obj == null) return;
+
+        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
+        if (mcObj != null) {
+            player.playSound(Sound.sound(SoundEvent.BLOCK_STONE_BREAK, Sound.Source.MASTER, 0.5f, 0.6f), Sound.Emitter.self());
+            mcObj.destroy();
+        }
     }
 
     @Override

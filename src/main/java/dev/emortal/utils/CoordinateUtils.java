@@ -39,11 +39,11 @@ public class CoordinateUtils {
         }
     }
 
-    public static @NotNull Vec3Arg toVec3(Point vec) {
+    public static @NotNull Vec3 toVec3(Point vec) {
         return new Vec3((float)vec.x(), (float)vec.y(), (float)vec.z());
     }
 
-    public static @NotNull RVec3Arg toRVec3(Point vec) {
+    public static @NotNull RVec3 toRVec3(Point vec) {
         return new RVec3((float)vec.x(), (float)vec.y(), (float)vec.z());
     }
 

@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.readonly.ConstPlane;
 import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import dev.emortal.objects.MinecraftPhysicsObject;
+import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.tag.Tag;
 import net.minestom.server.timer.TaskSchedule;
@@ -16,11 +17,14 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
+
+import static dev.emortal.utils.CoordinateUtils.toVec3;
 
 public class MinecraftPhysics {
 
@@ -40,6 +44,7 @@ public class MinecraftPhysics {
 
     private final @NotNull List<MinecraftPhysicsObject> objects = new CopyOnWriteArrayList<>();
     private final @NotNull Map<Body, MinecraftPhysicsObject> objectMap = new ConcurrentHashMap<>();
+    private final @NotNull Map<Integer, Body> bodyIdMap = new ConcurrentHashMap<>(); // TODO: seems like no better solution in jolt-jni..?
     private final Instance instance;
 
     public MinecraftPhysics(Instance instance) {
@@ -62,6 +67,7 @@ public class MinecraftPhysics {
                 lastRan = System.nanoTime();
                 if (paused) return TaskSchedule.tick(1);
                 update(deltaTime);
+//                update(0.05f);
 
                 return TaskSchedule.tick(1);
             }
@@ -117,6 +123,10 @@ public class MinecraftPhysics {
         // Minecraft: -31.36f
         physicsSystem.setGravity(new Vec3(0, -17f, 0));
 
+        addFloorPlane();
+    }
+
+    public void addFloorPlane() {
         BodyInterface bi = physicsSystem.getBodyInterface();
 
         // add static plane
@@ -148,25 +158,72 @@ public class MinecraftPhysics {
         return objects;
     }
 
+    public @Nullable Body getBodyById(int id) {
+        return bodyIdMap.get(id);
+    }
+
     public void addObject(MinecraftPhysicsObject object) {
         objects.add(object);
+        bodyIdMap.put(object.getBody().getId(), object.getBody());
         objectMap.put(object.getBody(), object);
     }
     public void removeObject(MinecraftPhysicsObject object) {
         objects.remove(object);
+        bodyIdMap.remove(object.getBody().getId());
         objectMap.remove(object.getBody());
+    }
+
+    public void addConstraint(Constraint constraint) {
+        physicsSystem.addConstraint(constraint);
+        if (constraint instanceof TwoBodyConstraint twoBodyConstraint) {
+            MinecraftPhysicsObject obj1 = getObjectByBody(twoBodyConstraint.getBody1());
+            if (obj1 != null) obj1.addRelatedConstraint(constraint);
+            MinecraftPhysicsObject obj2 = getObjectByBody(twoBodyConstraint.getBody2());
+            if (obj2 != null) obj2.addRelatedConstraint(constraint);
+        }
+    }
+
+    public void removeConstraint(Constraint constraint) {
+        physicsSystem.removeConstraint(constraint);
+        if (constraint instanceof TwoBodyConstraint twoBodyConstraint) {
+            MinecraftPhysicsObject obj1 = getObjectByBody(twoBodyConstraint.getBody1());
+            if (obj1 != null) obj1.removeRelatedConstraint(constraint);
+            MinecraftPhysicsObject obj2 = getObjectByBody(twoBodyConstraint.getBody2());
+            if (obj2 != null) obj2.removeRelatedConstraint(constraint);
+        }
     }
 
     public @Nullable MinecraftPhysicsObject getObjectByBody(Body physicsObject) {
         return objectMap.get(physicsObject);
     }
 
-//    public List<PhysicsRayTestResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
+//    public List<BroadPhaseCastResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
 //        Point endPoint = startPoint.add(direction.asVec().normalize().mul(maxDistance));
-//        List<PhysicsRayTestResult> results = getPhysicsSystem().rayTest(new Vector3f((float) startPoint.x(), (float) startPoint.y(), (float) startPoint.z()), new Vector3f((float) endPoint.x(), (float) endPoint.y(), (float) endPoint.z()));
+//        AllHitRayCastBodyCollector collector = new AllHitRayCastBodyCollector();
+//        getPhysicsSystem().getBroadPhaseQuery().castRay(new RayCast(toVec3(startPoint), toVec3(endPoint)), collector);
 //
-//        return results;
+//        return collector.getHits();
 //    }
+
+    public List<Body> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
+        Point endPoint = startPoint.add(direction.asVec().normalize().mul(maxDistance));
+        AllHitRayCastBodyCollector collector = new AllHitRayCastBodyCollector();
+        getPhysicsSystem().getBroadPhaseQuery().castRay(new RayCast(toVec3(startPoint), toVec3(endPoint)), collector);
+
+        List<Body> bodies = new ArrayList<>();
+        for (BroadPhaseCastResult hit : collector.getHits()) {
+            Body body = getBodyById(hit.getBodyId());
+            if (body == null) continue;
+            if (getObjectByBody(body) != null) bodies.add(body);
+        }
+        return bodies;
+    }
+
+    public void clear() {
+        objects.clear();
+        objectMap.clear();
+        bodyIdMap.clear();
+    }
 
     public boolean isPaused() {
         return paused;

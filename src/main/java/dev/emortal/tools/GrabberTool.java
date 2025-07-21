@@ -13,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
@@ -20,13 +21,16 @@ import net.minestom.server.network.packet.server.play.ParticlePacket;
 import net.minestom.server.particle.Particle;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.timer.Task;
+import net.minestom.server.timer.TaskSchedule;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static dev.emortal.utils.CoordinateUtils.toVec;
+import static dev.emortal.utils.CoordinateUtils.toVec3;
 
 public class GrabberTool extends Tool {
 
@@ -36,7 +40,7 @@ public class GrabberTool extends Tool {
     private @Nullable Body heldObject = null;
     private @Nullable Task holdingTask = null;
 
-    private final Map<Body, Body> jointMap = new HashMap<>();
+    private final Map<Integer, Integer> jointMap = new HashMap<>();
 
     private final @NotNull Player player;
     private final @NotNull MinecraftPhysics physicsHandler;
@@ -81,19 +85,17 @@ public class GrabberTool extends Tool {
 
         Body jointBody = Body.sFixedToWorld();
 
-        jointBody.setPositionAndRotationInternal(physicsLoc, jointBody.getRotation());
-
         SixDofConstraintSettings jointSettings = new SixDofConstraintSettings();
         jointSettings.makeFixedAxis(EAxis.TranslationX);
         jointSettings.makeFixedAxis(EAxis.TranslationY);
         jointSettings.makeFixedAxis(EAxis.TranslationZ);
-        jointSettings.setPosition1(new RVec3(0, 0, 0));
-        jointSettings.setPosition2(new RVec3(0, 0, 0));
+        jointSettings.setPosition1(physicsLoc);
+        jointSettings.setPosition2(physicsLoc);
 
         TwoBodyConstraint constraint = jointSettings.create(jointBody, heldObject);
-        physicsHandler.getPhysicsSystem().addConstraint(constraint);
+        physicsHandler.addConstraint(constraint);
 
-        jointMap.put(heldObject, jointBody);
+        jointMap.put(heldObject.getId(), jointBody.getId());
 
         holdingTask.cancel();
         holdingTask = null;
@@ -116,45 +118,42 @@ public class GrabberTool extends Tool {
             return;
         }
 
-//        List<PhysicsRayTestResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
-//        if (results.isEmpty()) return;
-//
-//        PhysicsCollisionObject obj = results.getFirst().getCollisionObject();
-//        if (!(obj instanceof PhysicsRigidBody rigidBody)) return;
-//
-//        if (jointMap.containsKey(obj)) { // Remove holding joints if any
-//            PhysicsRigidBody joint = jointMap.get(obj);
-//            for (PhysicsJoint physicsJoint : joint.listJoints()) {
-//                physicsHandler.getPhysicsSystem().remove(physicsJoint);
-//            }
-//            physicsHandler.getPhysicsSystem().remove(joint);
-//
-//            jointMap.remove(obj);
-//        }
-//
-//        player.playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.MASTER, 0.5f, 2f), Sound.Emitter.self());
-//
-//        rigidBody.activate();
-//        heldObject = rigidBody;
-//
-//        Vector3f objPos = new Vector3f();
-//        obj.getPhysicsLocation(objPos);
-//        holdingDistance = player.getPosition().distance(toVec(objPos));
-//
-//        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
-//        if (mcObj != null && mcObj.getEntity() != null) {
-//            mcObj.getEntity().setGlowing(true);
-//        }
-//
-//        holdingTask = player.scheduler().buildTask(() -> {
-//            Vector3f physicsVec = new Vector3f();
-//            obj.getPhysicsLocation(physicsVec);
-//
-//            Vec wantedPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)).asVec();
-//            Vec diff = wantedPos.sub(toVec(physicsVec)).asVec();
-//
-//            rigidBody.setLinearVelocity(toVec3(diff.mul(grabberForce)));
-//        }).repeat(TaskSchedule.tick(1)).schedule();
+        List<Body> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        if (results.isEmpty()) return;
+
+        Body obj = results.getFirst();
+
+        if (obj == null) return;
+
+        if (jointMap.containsKey(obj)) { // Remove holding joints if any
+            int jointId = jointMap.get(obj);
+            physicsHandler.getBodyInterface().removeBody(jointId);
+
+            jointMap.remove(obj);
+        }
+
+        player.playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.MASTER, 0.5f, 2f), Sound.Emitter.self());
+
+        obj.setAllowSleeping(false); // TODO: re-enable later
+        physicsHandler.getBodyInterface().activateBody(obj.getId());
+
+        heldObject = obj;
+
+        holdingDistance = player.getPosition().distance(toVec(obj.getPosition()));
+
+        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
+        if (mcObj != null && mcObj.getEntity() != null) {
+            mcObj.getEntity().setGlowing(true);
+        }
+
+        holdingTask = player.scheduler().buildTask(() -> {
+            RVec3 physicsVec = obj.getPosition();
+
+            Vec wantedPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)).asVec();
+            Vec diff = wantedPos.sub(toVec(physicsVec)).asVec();
+
+            obj.setLinearVelocity(toVec3(diff.mul(grabberForce)));
+        }).repeat(TaskSchedule.tick(1)).schedule();
     }
 
     @Override

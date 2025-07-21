@@ -9,9 +9,18 @@
 					"type": "minecraft:special",
 					"base": "animated_java:blueprint/player_display/slim/head",
 					"model": {
-						"type": "minecraft:head",
-						"kind": "player"
+						"type": "minecraft:player_head"
 					  }
+				}
+			},
+			{
+				"when": "physics",
+				"model": {
+					"type": "minecraft:special",
+					"base": "animated_java:blueprint/player_display/phys/head",
+					"model": {
+						"type": "minecraft:player_head"
+					}
 				}
 			}
 		],
@@ -19,8 +28,7 @@
 			"type": "minecraft:special",
 			"base": "animated_java:blueprint/player_display/head",
 			"model": {
-				"type": "minecraft:head",
-				"kind": "player"
+				"type": "minecraft:player_head"
 			  }
 		},
 		"tints": [

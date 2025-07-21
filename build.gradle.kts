@@ -18,13 +18,12 @@ repositories {
 
 dependencies {
     implementation("com.github.stephengold:jolt-jni-Windows64:2.0.1")
-
-    // native libraries:
-    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseSp")
-    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:ReleaseSp")
-
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:DebugDp")
+//    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugDp")
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
     runtimeOnly("com.github.oshi:oshi-core:6.8.1")
+
+    implementation("org.joml:joml:1.10.8")
 
     implementation("net.minestom:minestom:2025.07.17-1.21.8")
 
