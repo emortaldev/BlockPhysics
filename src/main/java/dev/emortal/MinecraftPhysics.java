@@ -44,7 +44,6 @@ public class MinecraftPhysics {
 
     private final @NotNull List<MinecraftPhysicsObject> objects = new CopyOnWriteArrayList<>();
     private final @NotNull Map<Body, MinecraftPhysicsObject> objectMap = new ConcurrentHashMap<>();
-    private final @NotNull Map<Integer, Body> bodyIdMap = new ConcurrentHashMap<>(); // TODO: seems like no better solution in jolt-jni..?
     private final Instance instance;
 
     public MinecraftPhysics(Instance instance) {
@@ -159,17 +158,15 @@ public class MinecraftPhysics {
     }
 
     public @Nullable Body getBodyById(int id) {
-        return bodyIdMap.get(id);
+        return new BodyLockRead(physicsSystem.getBodyLockInterfaceNoLock(), id).getBody();
     }
 
     public void addObject(MinecraftPhysicsObject object) {
         objects.add(object);
-        bodyIdMap.put(object.getBody().getId(), object.getBody());
         objectMap.put(object.getBody(), object);
     }
     public void removeObject(MinecraftPhysicsObject object) {
         objects.remove(object);
-        bodyIdMap.remove(object.getBody().getId());
         objectMap.remove(object.getBody());
     }
 
@@ -222,7 +219,6 @@ public class MinecraftPhysics {
     public void clear() {
         objects.clear();
         objectMap.clear();
-        bodyIdMap.clear();
     }
 
     public boolean isPaused() {
