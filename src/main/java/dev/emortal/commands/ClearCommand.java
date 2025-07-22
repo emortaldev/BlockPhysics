@@ -1,11 +1,18 @@
 package dev.emortal.commands;
 
 import dev.emortal.MinecraftPhysics;
+import dev.emortal.worldmesh.ChunkMesher;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
+import net.minestom.server.instance.Instance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClearCommand extends Command {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClearCommand.class);
+
     public ClearCommand(MinecraftPhysics physics) {
         super("clear");
 
@@ -22,8 +29,20 @@ public class ClearCommand extends Command {
 
             physics.clear();
 
+            // Regenerate chunk meshes
+            Instance instance = physics.getInstance();
+            instance.getChunks().forEach(c -> {
+                instance.scheduleNextTick(a -> {
+                    long before = System.nanoTime();
+                    ChunkMesher.createChunk(physics, c);
+                    long after = System.nanoTime();
+
+                    LOGGER.info("Took " + (after - before) + "ns to generate chunk mesh");
+                });
+            });
+
             // Re-add the floor
-            physics.addFloorPlane();
+//            physics.addFloorPlane();
 
 //            for (Player player1 : player.getInstance().getPlayers()) {
 //                CollisionShape boxShape = new BoxCollisionShape((float) (player1.getBoundingBox().width()/2f), (float) (player1.getBoundingBox().height()/2f), (float) (player1.getBoundingBox().depth()/2f));

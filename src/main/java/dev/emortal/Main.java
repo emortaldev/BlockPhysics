@@ -6,12 +6,14 @@ import dev.emortal.commands.*;
 import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import dev.emortal.tools.*;
+import dev.emortal.worldmesh.ChunkMesher;
 import electrostatic4j.snaploader.LibraryInfo;
 import electrostatic4j.snaploader.LoadingCriterion;
 import electrostatic4j.snaploader.NativeBinaryLoader;
 import electrostatic4j.snaploader.filesystem.DirectoryPath;
 import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
+import net.hollowcube.polar.PolarLoader;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -46,6 +48,8 @@ import net.minestom.server.world.DimensionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Set;
@@ -88,15 +92,36 @@ public class Main {
 
         InstanceContainer instance = MinecraftServer.getInstanceManager().createInstanceContainer(fullbright);
 
-        for (int x = -20; x < 20; x++) {
-            for (int z = -20; z < 20; z++) {
-                instance.setBlock(x, -1, z, Block.GRASS_BLOCK);
+        MinecraftPhysics physicsHandler = new MinecraftPhysics(instance);
+
+        try {
+            instance.setChunkLoader(new PolarLoader(Path.of("./emclobby.polar")));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        int chunkLoadRadius = 3;
+        for (int x = -chunkLoadRadius; x < chunkLoadRadius; x++) {
+            for (int z = -chunkLoadRadius; z < chunkLoadRadius; z++) {
+                instance.loadChunk(x, z).thenAccept(c -> {
+                    instance.scheduleNextTick(a -> {
+                        long before = System.nanoTime();
+                        ChunkMesher.createChunk(physicsHandler, c);
+                        long after = System.nanoTime();
+
+                        LOGGER.info("Took " + (after - before) + "ns to generate chunk mesh");
+                    });
+                });
             }
         }
+
+//        for (int x = -20; x < 20; x++) {
+//            for (int z = -20; z < 20; z++) {
+//                instance.setBlock(x, -1, z, Block.GRASS_BLOCK);
+//            }
+//        }
         instance.setTimeSynchronizationTicks(0);
         instance.setTimeRate(0);
-
-        MinecraftPhysics physicsHandler = new MinecraftPhysics(instance);
 
         BossBar bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
 
@@ -132,7 +157,7 @@ public class Main {
 
         global.addListener(AsyncPlayerConfigurationEvent.class, e -> {
             e.setSpawningInstance(instance);
-            e.getPlayer().setRespawnPoint(new Pos(0, 20, 0));
+            e.getPlayer().setRespawnPoint(new Pos(0, 80, 0));
         });
 
         global.addListener(ItemDropEvent.class, e -> {

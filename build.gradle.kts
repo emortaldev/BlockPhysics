@@ -16,7 +16,7 @@ repositories {
 dependencies {
     implementation("com.github.stephengold:jolt-jni-Windows64:2.0.1")
     runtimeOnly("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseSp")
-//    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:2.0.1:ReleaseSp")
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
     runtimeOnly("com.github.oshi:oshi-core:6.8.1")
 
@@ -25,6 +25,8 @@ dependencies {
     implementation("net.minestom:minestom:2025.07.17-1.21.8")
 
     implementation("ch.qos.logback:logback-classic:1.5.18")
+
+    implementation("dev.hollowcube:polar:1.14.6")
 }
 
 tasks {

@@ -16,7 +16,6 @@ import net.minestom.server.instance.block.BlockFace;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ChunkMesher {
@@ -31,13 +30,14 @@ public class ChunkMesher {
     }
 
     private static void generateChunkCollisionObject(MinecraftPhysics physics, Chunk chunk, int minY, int maxY) {
-        List<Quad> faces = getChunkFaces(chunk, minY, maxY);
-        List<Triangle> triangles = new ArrayList<>();
-        for (Quad face : faces) {
-            triangles.addAll(Arrays.asList(face.triangles()));
-        }
+        List<Face> faces = getChunkFaces(chunk, minY, maxY);
 
-        if (triangles.isEmpty()) return;
+        if (faces.isEmpty()) return;
+
+        List<Triangle> triangles = new ArrayList<>();
+        for (Face face : faces) {
+            face.addTris(triangles);
+        }
 
         MeshShapeSettings shapeSettings = new MeshShapeSettings(triangles);
 
@@ -49,7 +49,7 @@ public class ChunkMesher {
         physics.getBodyInterface().createAndAddBody(bodySettings, EActivation.DontActivate);
     }
 
-    private static List<Quad> getChunkFaces(Chunk chunk, int minY, int maxY) {
+    private static List<Face> getChunkFaces(Chunk chunk, int minY, int maxY) {
         int bottomY = maxY;
         int topY = minY;
 
@@ -70,12 +70,12 @@ public class ChunkMesher {
         }
 
 
-        List<Quad> finalFaces = new ArrayList<>();
+        List<Face> finalFaces = new ArrayList<>();
 
         for (int y = bottomY; y < topY; y++) {
             for (int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
                 for (int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
-                    List<Quad> faces = getQuads(chunk, x, y, z);
+                    List<Face> faces = getFaces(chunk, x, y, z);
                     if (faces == null) continue;
                     finalFaces.addAll(faces);
                 }
@@ -85,11 +85,11 @@ public class ChunkMesher {
         return finalFaces;
     }
 
-    private static @Nullable List<Quad> getQuads(Chunk chunk, int x, int y, int z){
+    private static @Nullable List<Face> getFaces(Chunk chunk, int x, int y, int z){
         Block block = chunk.getBlock(x, y, z, Block.Getter.Condition.TYPE);
 
         if (block.isAir() || block.isLiquid()) return null;
-        List<Quad> quads = new ArrayList<>();
+        List<Face> faces = new ArrayList<>();
 
         Shape shape = block.registry().collisionShape();
         Point relStart = shape.relativeStart();
@@ -113,7 +113,7 @@ public class ChunkMesher {
             );
 
             if (!face.isEdge()) { // If face isn't an edge, we don't need to check neighbours
-                quads.add(face.toQuad());
+                faces.add(face);
                 continue;
             }
 
@@ -121,11 +121,11 @@ public class ChunkMesher {
             var neighbourBlock = chunk.getBlock(x + dir.normalX(), y + dir.normalY(), z + dir.normalZ(), Block.Getter.Condition.TYPE);
 
             if (!isFull(neighbourBlock)) {
-                quads.add(face.toQuad());
+                faces.add(face);
             }
         }
 
-        return quads;
+        return faces;
     }
 
     private static boolean isFull(Block block) {
