@@ -2,23 +2,26 @@ package dev.emortal;
 
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Vec;
-import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
 public final class SphereUtil {
 
-    public static @NotNull List<WorldBlock> getNearbyBlocks(@NotNull Point pos, Set<Point> blocksInSphere, @NotNull Instance instance,
+    public static @NotNull List<WorldBlock> getNearbyBlocks(@NotNull Point pos, Set<Point> blocksInSphere, @NotNull Block.Getter blockGetter,
                                                             @NotNull Predicate<WorldBlock> predicate) {
         List<WorldBlock> filteredBlocks = new ArrayList<>();
         for (Point block : blocksInSphere) {
             Point blockPos = block.add(pos);
             Block currentBlock;
             try {
-                currentBlock = instance.getBlock(blockPos, Block.Getter.Condition.TYPE);
+                currentBlock = blockGetter.getBlock(blockPos, Block.Getter.Condition.TYPE);
             } catch (Exception ignored) {
                 continue;
             }

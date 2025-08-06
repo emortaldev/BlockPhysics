@@ -36,9 +36,6 @@ public class DiamondLayerTool extends Tool {
 
     @Override
     public void onRightClick() {
-//        BlockRigidBody rigidBody = new BlockRigidBody(physicsHandler, new RVec3(0, 20, 0), new Vec(0.5), true, Block.DIAMOND_BLOCK);
-//        rigidBody.setInstance();
-
         for (int x = -5; x <= 5; x++) {
             for (int z = -5; z <= 5; z++) {
                 BlockRigidBody rigidBody = new BlockRigidBody(physicsHandler, new RVec3(x, 80, z), new Vec(0.5), true, Block.DIAMOND_BLOCK);

@@ -50,4 +50,17 @@ public class CoordinateUtils {
     public static float[] toFloats(QuatArg rotation) {
         return new float[] { rotation.getX(), rotation.getY(), rotation.getZ(), rotation.getW() };
     }
+
+    public static Vec lerpVec(Vec a, Vec b, double f) {
+        return new Vec(
+                lerp(a.x(), b.x(), f),
+                lerp(a.y(), b.y(), f),
+                lerp(a.z(), b.z(), f)
+        );
+    }
+
+    public static double lerp(double a, double b, double f) {
+        return a + f * (b - a);
+    }
+
 }

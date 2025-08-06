@@ -3,7 +3,6 @@ package dev.emortal.worldmesh;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.MeshShapeSettings;
 import com.github.stephengold.joltjni.Triangle;
-import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import dev.emortal.MinecraftPhysics;
 import net.minestom.server.MinecraftServer;
@@ -22,17 +21,17 @@ public class ChunkMesher {
 
     private static final BlockFace[] BLOCK_FACES = BlockFace.values();
 
-    public static void createChunk(MinecraftPhysics physics, Chunk chunk) {
+    public static @Nullable BodyCreationSettings createChunk(Chunk chunk) {
         int minY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).minY();
         int maxY = MinecraftServer.getDimensionTypeRegistry().get(chunk.getInstance().getDimensionType()).maxY();
 
-        generateChunkCollisionObject(physics, chunk, minY, maxY);
+        return generateChunkCollisionObject(chunk, minY, maxY);
     }
 
-    private static void generateChunkCollisionObject(MinecraftPhysics physics, Chunk chunk, int minY, int maxY) {
+    private static @Nullable BodyCreationSettings generateChunkCollisionObject(Chunk chunk, int minY, int maxY) {
         List<Face> faces = getChunkFaces(chunk, minY, maxY);
 
-        if (faces.isEmpty()) return;
+        if (faces.isEmpty()) return null;
 
         List<Triangle> triangles = new ArrayList<>();
         for (Face face : faces) {
@@ -46,7 +45,7 @@ public class ChunkMesher {
                 .setObjectLayer(MinecraftPhysics.objLayerNonMoving)
                 .setShape(shapeSettings.create().get());
 
-        physics.getBodyInterface().createAndAddBody(bodySettings, EActivation.DontActivate);
+        return bodySettings;
     }
 
     private static List<Face> getChunkFaces(Chunk chunk, int minY, int maxY) {

@@ -1,6 +1,7 @@
 package dev.emortal.tools;
 
 import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.Constraint;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.SixDofConstraintSettings;
 import com.github.stephengold.joltjni.TwoBodyConstraint;
@@ -20,27 +21,26 @@ import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.play.ParticlePacket;
 import net.minestom.server.particle.Particle;
 import net.minestom.server.sound.SoundEvent;
-import net.minestom.server.timer.Task;
-import net.minestom.server.timer.TaskSchedule;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static dev.emortal.utils.CoordinateUtils.toVec;
 import static dev.emortal.utils.CoordinateUtils.toVec3;
 
 public class GrabberTool extends Tool {
 
-    private final double grabberForce = 7;
+    private final double grabberForce = 10;
 
     private double holdingDistance = 0.0;
     private @Nullable Body heldObject = null;
-    private @Nullable Task holdingTask = null;
+    private @Nullable UUID holdingTask = null;
 
-    private final Map<Integer, Integer> jointMap = new HashMap<>();
+    private final Map<Integer, GrabberJoint> jointMap = new HashMap<>();
 
     private final @NotNull Player player;
     private final @NotNull MinecraftPhysics physicsHandler;
@@ -95,9 +95,9 @@ public class GrabberTool extends Tool {
         TwoBodyConstraint constraint = jointSettings.create(jointBody, heldObject);
         physicsHandler.addConstraint(constraint);
 
-        jointMap.put(heldObject.getId(), jointBody.getId());
+        jointMap.put(heldObject.getId(), new GrabberJoint(constraint, jointBody.getId()));
 
-        holdingTask.cancel();
+        physicsHandler.removeTickTask(holdingTask);
         holdingTask = null;
         heldObject = null;
     }
@@ -110,7 +110,7 @@ public class GrabberTool extends Tool {
                 mcObj.getEntity().setGlowing(false);
             }
 
-            holdingTask.cancel();
+            physicsHandler.removeTickTask(holdingTask);
             holdingTask = null;
             heldObject = null;
 
@@ -118,24 +118,21 @@ public class GrabberTool extends Tool {
             return;
         }
 
-        List<Body> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<MinecraftPhysics.RaycastResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 100);
         if (results.isEmpty()) return;
 
-        Body obj = results.getFirst();
+        MinecraftPhysics.RaycastResult result = results.getFirst();
+        Body obj = result.body();
 
-        if (obj == null) return;
+        if (jointMap.containsKey(obj.getId())) { // Remove holding joints if any
+            GrabberJoint joint = jointMap.get(obj.getId());
+            physicsHandler.getBodyInterface().removeBody(joint.bodyId());
+            physicsHandler.removeConstraint(joint.constraint());
 
-        if (jointMap.containsKey(obj)) { // Remove holding joints if any
-            int jointId = jointMap.get(obj);
-            physicsHandler.getBodyInterface().removeBody(jointId);
-
-            jointMap.remove(obj);
+            jointMap.remove(obj.getId());
         }
 
         player.playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.MASTER, 0.5f, 2f), Sound.Emitter.self());
-
-        obj.setAllowSleeping(false); // TODO: re-enable later
-        physicsHandler.getBodyInterface().activateBody(obj.getId());
 
         heldObject = obj;
 
@@ -146,14 +143,16 @@ public class GrabberTool extends Tool {
             mcObj.getEntity().setGlowing(true);
         }
 
-        holdingTask = player.scheduler().buildTask(() -> {
+        holdingTask = physicsHandler.addTickTask(() -> {
+            physicsHandler.getBodyInterface().activateBody(obj.getId());
+
             RVec3 physicsVec = obj.getPosition();
 
             Vec wantedPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)).asVec();
             Vec diff = wantedPos.sub(toVec(physicsVec)).asVec();
 
             obj.setLinearVelocity(toVec3(diff.mul(grabberForce)));
-        }).repeat(TaskSchedule.tick(1)).schedule();
+        });
     }
 
     @Override
@@ -163,4 +162,7 @@ public class GrabberTool extends Tool {
                 .set(Tool.TOOL_NAME_TAG, "grabber")
                 .build();
     }
+
+    private record GrabberJoint(Constraint constraint, Integer bodyId) {}
+
 }

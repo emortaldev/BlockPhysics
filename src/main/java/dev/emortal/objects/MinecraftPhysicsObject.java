@@ -1,6 +1,10 @@
 package dev.emortal.objects;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.Constraint;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import dev.emortal.MinecraftPhysics;
 import net.minestom.server.entity.Entity;
@@ -69,6 +73,14 @@ public abstract class MinecraftPhysicsObject {
         }
     }
 
+    public void activate() {
+        mcPhysics.getPhysicsSystem().getBodyInterface().activateBody(body.getId());
+    }
+
+    public boolean isActive() {
+        return body.isActive();
+    }
+
     public @NotNull Body getBody() {
         return body;
     }
@@ -83,17 +95,18 @@ public abstract class MinecraftPhysicsObject {
         if (entity == null) return;
         if (!entity.isActive()) return;
 
+        RVec3 rVec3 = new RVec3();
+        Quat quat = new Quat();
+        getBody().getPositionAndRotation(rVec3, quat);
+
         entity.editEntityMeta(AbstractDisplayMeta.class, meta -> {
             meta.setTransformationInterpolationStartDelta(0);
-
-            RVec3 rVec3 = new RVec3();
-            Quat quat = new Quat();
-            getBody().getPositionAndRotation(rVec3, quat);
-            entity.teleport(toPos(rVec3));
 
             // size not updated as it doesn't change
             meta.setLeftRotation(toFloats(quat));
         });
+
+        entity.teleport(toPos(rVec3));
     }
 
 }

@@ -1,11 +1,22 @@
 package dev.emortal;
 
 import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.Vec3;
-import dev.emortal.commands.*;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import dev.emortal.commands.ChainLengthCommand;
+import dev.emortal.commands.ClearCommand;
+import dev.emortal.commands.PerformanceCommand;
+import dev.emortal.commands.PlayerSizeCommand;
+import dev.emortal.commands.TntStrengthCommand;
 import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.MinecraftPhysicsObject;
-import dev.emortal.tools.*;
+import dev.emortal.tools.ChainTool;
+import dev.emortal.tools.DeleteTool;
+import dev.emortal.tools.DiamondLayerTool;
+import dev.emortal.tools.GrabberTool;
+import dev.emortal.tools.PlayerSpawnerTool;
+import dev.emortal.tools.WeldTool;
 import dev.emortal.worldmesh.ChunkMesher;
 import electrostatic4j.snaploader.LibraryInfo;
 import electrostatic4j.snaploader.LoadingCriterion;
@@ -20,6 +31,7 @@ import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.command.CommandManager;
+import net.minestom.server.coordinate.CoordConversion;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -35,6 +47,7 @@ import net.minestom.server.event.player.PlayerBlockPlaceEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.extras.MojangAuth;
+import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.batch.AbsoluteBlockBatch;
 import net.minestom.server.instance.block.Block;
@@ -48,11 +61,16 @@ import net.minestom.server.world.DimensionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.channels.Channels;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static dev.emortal.utils.CoordinateUtils.*;
@@ -62,6 +80,8 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     private static final Set<Point> BLOCKS_IN_SPHERE = SphereUtil.getBlocksInSphere(5);
+    public static final Map<Long, Integer> CHUNK_MESH_MAP = new ConcurrentHashMap<>();
+    public static final Map<Long, BodyCreationSettings> CHUNK_MESH_SETTINGS = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
         LibraryInfo info = new LibraryInfo(null, "joltjni", DirectoryPath.USER_DIR);
@@ -82,53 +102,54 @@ public class Main {
                     "Failed to load a Jolt-JNI native library!");
         }
 
-        System.setProperty("minestom.tps", "60");
+        System.setProperty("minestom.tps", "20");
+        System.setProperty("blockphysics.fps", "60");
 
         MinecraftServer server = MinecraftServer.init();
+
+        // Use only for local servers!!
+        MinecraftServer.setCompressionThreshold(0);
         MojangAuth.init();
+        // Use only for local servers!!
 
         DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
         var fullbright = MinecraftServer.getDimensionTypeRegistry().register(Key.key("fullbright"), fullbrightDimension);
 
         InstanceContainer instance = MinecraftServer.getInstanceManager().createInstanceContainer(fullbright);
+        instance.enableAutoChunkLoad(true);
 
         MinecraftPhysics physicsHandler = new MinecraftPhysics(instance);
 
+        byte[] polarBytes;
         try {
-            instance.setChunkLoader(new PolarLoader(Path.of("./emclobby.polar")));
+            polarBytes = Files.readAllBytes(Path.of("./emclobby.polar"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        PolarLoader.streamLoad(instance, Channels.newChannel(new ByteArrayInputStream(polarBytes)), polarBytes.length, null, null, true).join();
 
         int chunkLoadRadius = 3;
         for (int x = -chunkLoadRadius; x < chunkLoadRadius; x++) {
             for (int z = -chunkLoadRadius; z < chunkLoadRadius; z++) {
                 instance.loadChunk(x, z).thenAccept(c -> {
                     instance.scheduleNextTick(a -> {
-                        long before = System.nanoTime();
-                        ChunkMesher.createChunk(physicsHandler, c);
-                        long after = System.nanoTime();
-
-                        LOGGER.info("Took " + (after - before) + "ns to generate chunk mesh");
+                        refreshChunk(physicsHandler, c);
                     });
                 });
             }
         }
 
-//        for (int x = -20; x < 20; x++) {
-//            for (int z = -20; z < 20; z++) {
-//                instance.setBlock(x, -1, z, Block.GRASS_BLOCK);
-//            }
-//        }
         instance.setTimeSynchronizationTicks(0);
         instance.setTimeRate(0);
 
         BossBar bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+        BossBar bossBar2 = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
 
         GlobalEventHandler global = MinecraftServer.getGlobalEventHandler();
 
         global.addListener(PlayerSpawnEvent.class, e -> {
             e.getPlayer().showBossBar(bossBar);
+            e.getPlayer().showBossBar(bossBar2);
             e.getPlayer().setGameMode(GameMode.CREATIVE);
 
             e.getPlayer().sendMessage(Component.text("Welcome to your physics playground!"));
@@ -164,19 +185,35 @@ public class Main {
             e.setCancelled(true);
         });
 
+        int physicsFps = Integer.parseInt(System.getProperty("blockphysics.fps"));
+        int physicsFrameMs = 1000 / physicsFps;
         DecimalFormat dec = new DecimalFormat("0.00");
         global.addListener(ServerTickMonitorEvent.class, e -> {
             double tickTime = Math.floor(e.getTickMonitor().getTickTime() * 100.0) / 100.0;
+            double physicsFpsTime = physicsHandler.getLastNanos().get() / 1_000_000.0;
+
             bossBar.name(
                     Component.text()
                             .append(Component.text("MSPT: " + dec.format(tickTime)))
             );
-            bossBar.progress(Math.min((float)tickTime / (float)(1000 / ServerFlag.SERVER_TICKS_PER_SECOND), 1f));
+            bossBar.progress((float) Math.min(tickTime / MinecraftServer.TICK_MS, 1f));
+
+            bossBar2.name(
+                    Component.text()
+                            .append(Component.text("Physics MSPT: " + dec.format(physicsFpsTime)))
+            );
+            bossBar2.progress((float) Math.min(physicsFpsTime / physicsFrameMs, 1f));
 
             if (tickTime > MinecraftServer.TICK_MS) {
                 bossBar.color(BossBar.Color.RED);
             } else {
                 bossBar.color(BossBar.Color.GREEN);
+            }
+
+            if (tickTime > MinecraftServer.TICK_MS) {
+                bossBar2.color(BossBar.Color.RED);
+            } else {
+                bossBar2.color(BossBar.Color.GREEN);
             }
         });
 
@@ -206,6 +243,7 @@ public class Main {
                 e.setCancelled(true);
 
                 Entity entity = new Entity(EntityType.TNT);
+                entity.setNoGravity(true);
                 entity.editEntityMeta(PrimedTntMeta.class, meta -> {
                     meta.setFuseTime(60);
                 });
@@ -224,7 +262,7 @@ public class Main {
 
                         Body body = cube.getBody();
 
-                        physicsHandler.getBodyInterface().activateBody(body.getId());
+                        cube.activate();
 
                         Vec velocity = cube.getEntity().getPosition().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
 
@@ -239,7 +277,7 @@ public class Main {
                         var cube = new BlockRigidBody(physicsHandler, toRVec3(nearbyBlock.position()), new Vec(0.5), true, nearbyBlock.block());
                         cube.setInstance();
                         Body cubeBody = cube.getBody();
-                        physicsHandler.getBodyInterface().activateBody(cubeBody.getId());
+                        cube.activate();
 
                         Vec velocity = nearbyBlock.position().sub(blockPos.add(0.5)).asVec().normalize().mul(4, 8, 4).mul(rand.nextDouble(1.2, 2)).mul(TntStrengthCommand.TNT_STRENGTH);
 
@@ -247,23 +285,24 @@ public class Main {
                         cubeBody.setLinearVelocity(toVec3(velocity.add(toVec(linearVelocity))));
                         cubeBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
                         batch.setBlock(nearbyBlock.position(), Block.AIR);
-
-                        Block block = instance.getBlock(nearbyBlock.position().sub(0.5));
-                        MinecraftPhysicsObject physicsBlock = block.getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
-                        if (physicsBlock != null) {
-                            physicsBlock.destroy();
-                        }
                     }
-                    batch.apply(instance, null);
+                    batch.apply(instance, () -> {
+                        for (int x = -1; x <= 1; x++) {
+                            for (int z = -1; z <= 1; z++) {
+                                refreshChunk(physicsHandler, instance.getChunkAt(blockPos.add(x * Chunk.CHUNK_SIZE_X, 0, z * Chunk.CHUNK_SIZE_Z)));
+                            }
+                        }
+                    });
                 }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
+            }
+
+            if (!e.isCancelled()) {
+                refreshChunk(physicsHandler, e.getInstance().getChunkAt(e.getBlockPosition()));
             }
         });
 
         global.addListener(PlayerBlockBreakEvent.class, e -> {
-            MinecraftPhysicsObject physicsObject = e.getBlock().getTag(MinecraftPhysics.PHYSICS_BLOCK_TAG);
-            if (physicsObject != null) {
-                physicsObject.destroy();
-            }
+            refreshChunk(physicsHandler, e.getInstance().getChunkAt(e.getBlockPosition()));
         });
 
         CommandManager commandManager = MinecraftServer.getCommandManager();
@@ -274,6 +313,30 @@ public class Main {
         commandManager.register(new TntStrengthCommand());
 
         server.start("0.0.0.0", 25565);
+    }
+
+    public static void refreshChunk(MinecraftPhysics physics, Chunk chunk) {
+        long index = CoordConversion.chunkIndex(chunk.getChunkX(), chunk.getChunkZ());
+        Integer previous = CHUNK_MESH_MAP.get(index);
+        if (previous != null) {
+            physics.getBodyInterface().removeBody(previous);
+            physics.getBodyInterface().destroyBody(previous);
+        }
+
+        LOGGER.info("Refreshing chunk mesh at chunk X:{} Z:{}", chunk.getChunkX(), chunk.getChunkZ());
+
+        long before = System.nanoTime();
+        BodyCreationSettings settings = ChunkMesher.createChunk(chunk);
+        long after = System.nanoTime();
+
+        LOGGER.info("Took {}ns to regenerate chunk mesh", after - before);
+
+        CHUNK_MESH_SETTINGS.put(index, settings);
+        if (settings == null) return;
+        Body body = physics.getBodyInterface().createBody(settings);
+        CHUNK_MESH_MAP.put(index, body.getId());
+
+        physics.getBodyInterface().addBody(body, EActivation.DontActivate);
     }
 
 }

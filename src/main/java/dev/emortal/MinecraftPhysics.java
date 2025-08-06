@@ -1,6 +1,28 @@
 package dev.emortal;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.AllHitRayCastBodyCollector;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.BodyLockRead;
+import com.github.stephengold.joltjni.BroadPhaseCastResult;
+import com.github.stephengold.joltjni.BroadPhaseLayerInterfaceTable;
+import com.github.stephengold.joltjni.Constraint;
+import com.github.stephengold.joltjni.JobSystem;
+import com.github.stephengold.joltjni.JobSystemThreadPool;
+import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.JoltPhysicsObject;
+import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
+import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
+import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
+import com.github.stephengold.joltjni.PhysicsSystem;
+import com.github.stephengold.joltjni.Plane;
+import com.github.stephengold.joltjni.PlaneShape;
+import com.github.stephengold.joltjni.RayCast;
+import com.github.stephengold.joltjni.TempAllocator;
+import com.github.stephengold.joltjni.TempAllocatorMalloc;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
@@ -9,9 +31,8 @@ import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import net.minestom.server.coordinate.Point;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.tag.Tag;
-import net.minestom.server.timer.TaskSchedule;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -20,10 +41,15 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Supplier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static dev.emortal.utils.CoordinateUtils.lerpVec;
 import static dev.emortal.utils.CoordinateUtils.toVec3;
 
 public class MinecraftPhysics {
@@ -35,12 +61,14 @@ public class MinecraftPhysics {
 
     private boolean paused = false;
 
+    private final ScheduledExecutorService executors = Executors.newSingleThreadScheduledExecutor();
+    private final Map<UUID, Runnable> tickTasks = new ConcurrentHashMap<>();
+
     private @NotNull PhysicsSystem physicsSystem;
     private @NotNull TempAllocator tempAllocator;
     private @NotNull JobSystem jobSystem;
 
-    public static final Tag<MinecraftPhysicsObject> PHYSICS_BLOCK_TAG = Tag.Transient("physicsblock");
-    public static final Tag<Body> PLAYER_RIGID_BODY_TAG = Tag.Transient("playerbody");
+    private final AtomicLong lastNanos = new AtomicLong(0);
 
     private final @NotNull List<MinecraftPhysicsObject> objects = new CopyOnWriteArrayList<>();
     private final @NotNull Map<Body, MinecraftPhysicsObject> objectMap = new ConcurrentHashMap<>();
@@ -49,28 +77,29 @@ public class MinecraftPhysics {
     public MinecraftPhysics(Instance instance) {
         this.instance = instance;
 
-        instance.scheduler().submitTask(new Supplier<>() {
-            boolean first = true;
-            long lastRan = System.nanoTime();
+        executors.submit(this::init);
 
-            @Override
-            public TaskSchedule get() {
-                if (first) {
-                    init();
-                    first = false;
-                }
+        int physicsFps = Integer.parseInt(System.getProperty("blockphysics.fps", "60"));
+        LOGGER.info("Running physics simulation at {} FPS", physicsFps);
+        long physicsMillis = 1000 / physicsFps;
+        executors.scheduleAtFixedRate(() -> {
+            float deltaTime = physicsMillis / 1_000f;
+            long before = System.nanoTime();
+            update(deltaTime);
 
-                long diff = System.nanoTime() - lastRan;
-                float deltaTime = diff / 1_000_000_000f;
-
-                lastRan = System.nanoTime();
-                if (paused) return TaskSchedule.tick(1);
-                update(deltaTime);
-//                update(0.05f);
-
-                return TaskSchedule.tick(1);
+            for (Runnable value : tickTasks.values()) {
+                value.run();
             }
-        });
+
+            for (MinecraftPhysicsObject object : objects) {
+                if (!object.isActive()) continue;
+                object.update();
+            }
+
+            long after = System.nanoTime();
+
+            lastNanos.set(after - before);
+        }, 0, physicsMillis, TimeUnit.MILLISECONDS);
     }
 
     private void init() {
@@ -150,10 +179,6 @@ public class MinecraftPhysics {
         int steps = 1;
         int errors = physicsSystem.update(delta, steps, tempAllocator, jobSystem);
         assert errors == EPhysicsUpdateError.None : errors;
-
-        for (MinecraftPhysicsObject object : objects) {
-            object.update();
-        }
     }
 
     public @NotNull List<MinecraftPhysicsObject> getObjects() {
@@ -213,23 +238,45 @@ public class MinecraftPhysics {
 //        return collector.getHits();
 //    }
 
-    public List<Body> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
-        Point endPoint = startPoint.add(direction.asVec().normalize().mul(maxDistance));
-        AllHitRayCastBodyCollector collector = new AllHitRayCastBodyCollector();
-        getPhysicsSystem().getBroadPhaseQuery().castRay(new RayCast(toVec3(startPoint), toVec3(endPoint)), collector);
+    public record RaycastResult(Body body, Vec hitPos) {}
 
-        List<Body> bodies = new ArrayList<>();
+    public List<RaycastResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
+        Vec endOffset = direction.asVec().normalize().mul(maxDistance);
+        Vec endPoint = startPoint.add(endOffset).asVec();
+        AllHitRayCastBodyCollector collector = new AllHitRayCastBodyCollector();
+        getPhysicsSystem().getBroadPhaseQuery().castRay(new RayCast(toVec3(startPoint), toVec3(endOffset)), collector);
+
+        List<RaycastResult> results = new ArrayList<>();
         for (BroadPhaseCastResult hit : collector.getHits()) {
             Body body = getBodyById(hit.getBodyId());
             if (body == null) continue;
-            if (getObjectByBody(body) != null) bodies.add(body);
+            if (getObjectByBody(body) != null) {
+                Vec hitPos = lerpVec(startPoint.asVec(), endPoint, hit.getFraction());
+
+                results.add(new RaycastResult(body, hitPos));
+            }
         }
-        return bodies;
+        return results;
     }
 
     public void clear() {
         objects.clear();
         objectMap.clear();
+
+        executors.submit(() -> {
+            getPhysicsSystem().removeAllConstraints();
+            getPhysicsSystem().destroyAllBodies();
+        });
+    }
+
+    public UUID addTickTask(Runnable runnable) {
+        UUID random = UUID.randomUUID();
+        tickTasks.put(random, runnable);
+        return random;
+    }
+
+    public void removeTickTask(UUID uuid) {
+        tickTasks.remove(uuid);
     }
 
     public boolean isPaused() {
@@ -238,6 +285,10 @@ public class MinecraftPhysics {
 
     public void setPaused(boolean paused) {
         this.paused = paused;
+    }
+
+    public AtomicLong getLastNanos() {
+        return lastNanos;
     }
 
     public Instance getInstance() {

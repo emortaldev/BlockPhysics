@@ -46,11 +46,11 @@ public class WeldTool extends Tool {
             player.sendMessage("Deselected first object");
         }
 
-        List<Body> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<MinecraftPhysics.RaycastResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
-        Body obj = results.getFirst();
-        if (obj == null) return;
+        MinecraftPhysics.RaycastResult result = results.getFirst();
+        Body obj = result.body();
 
         // TODO: unsure
 //        for (PhysicsJoint physicsJoint : rigidBody.listJoints()) {
@@ -61,11 +61,11 @@ public class WeldTool extends Tool {
 
     @Override
     public void onRightClick() {
-        List<Body> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
+        List<MinecraftPhysics.RaycastResult> results = physicsHandler.raycastEntity(player.getPosition().add(0, player.getEyeHeight(), 0), player.getPosition().direction(), 1000);
         if (results.isEmpty()) return;
 
-        Body obj = results.getFirst();
-        if (obj == null) return;
+        MinecraftPhysics.RaycastResult result = results.getFirst();
+        Body obj = result.body();
 
         if (firstObject != null) {
             RVec3 firstObjectPos = firstObject.getPosition();

@@ -2,6 +2,7 @@ package dev.emortal.tools;
 
 import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.PlayerDisplayPart;
 import dev.emortal.objects.MinecraftPhysicsObject;
@@ -22,8 +23,11 @@ import org.jetbrains.annotations.NotNull;
 import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import static dev.emortal.commands.PlayerSizeCommand.PLAYER_SIZE;
 import static dev.emortal.utils.CoordinateUtils.toRVec3;
+import static dev.emortal.utils.CoordinateUtils.toVec3;
 
 public class PlayerSpawnerTool extends Tool {
 
@@ -43,7 +47,16 @@ public class PlayerSpawnerTool extends Tool {
 
     @Override
     public void onLeftClick() {
+        player.playSound(Sound.sound(SoundEvent.ENTITY_VILLAGER_AMBIENT, Sound.Source.MASTER, 1f, 1f), Sound.Emitter.self());
 
+        Pos startPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(5));
+        PlayerBody playerBody = spawnAtPos(startPos);
+
+        RVec3 torsoPos = playerBody.torso().getBody().getPosition();
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        RVec3 impulsePos = new RVec3(rand.nextFloat(-1f, 1f), rand.nextFloat(-1.5f, 1.5f), rand.nextFloat(-1f, 1f));
+        impulsePos.addInPlace(torsoPos.xx(), torsoPos.yy(), torsoPos.zz());
+        playerBody.torso().getBody().addImpulse(toVec3(startPos.direction().mul(2000)), impulsePos);
     }
 
     @Override
@@ -51,6 +64,19 @@ public class PlayerSpawnerTool extends Tool {
         player.playSound(Sound.sound(SoundEvent.ENTITY_VILLAGER_AMBIENT, Sound.Source.MASTER, 1f, 1f), Sound.Emitter.self());
 
         Pos startPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(5));
+        spawnAtPos(startPos);
+    }
+
+    record PlayerBody(
+            MinecraftPhysicsObject torso,
+            MinecraftPhysicsObject head,
+            MinecraftPhysicsObject rightArm,
+            MinecraftPhysicsObject leftArm,
+            MinecraftPhysicsObject rightLeg,
+            MinecraftPhysicsObject leftLeg
+    ) {}
+
+    private PlayerBody spawnAtPos(Pos startPos) {
         // all halves \/
         Vec torsoSize = new Vec(4.0f/16.0f, 6.0f/16.0f, 2.0f/16.0f).mul(PLAYER_SIZE);
 //            Vector3 headSize = new Vector3(4.0f/16.0f, 4.0f/16.0f, 4.0f/16.0f);
@@ -78,6 +104,7 @@ public class PlayerSpawnerTool extends Tool {
         rightLeg.setInstance();
         leftLeg.setInstance();
 
+        return new PlayerBody(torso, head, rightArm, leftArm, rightLeg, leftLeg);
     }
 
     @Override

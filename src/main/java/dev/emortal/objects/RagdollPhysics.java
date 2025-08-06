@@ -1,7 +1,14 @@
 package dev.emortal.objects;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.BoxShape;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.SixDofConstraintSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EAxis;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.QuatArg;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
@@ -44,6 +51,7 @@ public class RagdollPhysics extends MinecraftPhysicsObject {
                         .setLinearDamping(0.3f)
                         .setPosition(position)
                         .setRotation(rotation)
+                        .setMotionQuality(EMotionQuality.LinearCast) // Use CCD (Continuous Collision Detection), helps not fall through the mesh
         );
         this.part = part;
 
@@ -85,16 +93,12 @@ public class RagdollPhysics extends MinecraftPhysicsObject {
             secondThing2.scaleInPlace(PLAYER_SIZE);
             secondThing2.addInPlace(position.x(), position.y(), position.z());
 
-//            firstThing.scaleInPlace(PLAYER_SIZE);
-//            secondThing.scaleInPlace(PLAYER_SIZE);
-
             SixDofConstraintSettings jointSettings = new SixDofConstraintSettings();
             jointSettings.makeFixedAxis(EAxis.TranslationX);
             jointSettings.makeFixedAxis(EAxis.TranslationY);
             jointSettings.makeFixedAxis(EAxis.TranslationZ);
             jointSettings.setPosition1(firstThing2);
             jointSettings.setPosition2(secondThing2);
-//            joint.setBreakingImpulseThreshold(60); TODO: this
 
             TwoBodyConstraint constraint = jointSettings.create(torso, getBody());
             mcPhysics.addConstraint(constraint);
@@ -127,9 +131,6 @@ public class RagdollPhysics extends MinecraftPhysicsObject {
             meta.setScale(new Vec(PLAYER_SIZE));
             meta.setTranslation(new Vec(0, this.part.getYTranslation(), 0));
             meta.setLeftRotation(toFloats(getBody().getRotation()));
-
-//            meta.setItemStack(ItemStack.of(Material.DIAMOND_BLOCK));
-//            meta.setScale(getSize().mul(2));
         });
 
         return entity;
