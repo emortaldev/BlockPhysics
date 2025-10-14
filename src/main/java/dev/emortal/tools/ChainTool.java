@@ -56,7 +56,7 @@ public class ChainTool extends Tool {
 
     @Override
     public ItemStack getItem() {
-        return ItemStack.builder(Material.CHAIN)
+        return ItemStack.builder(Material.IRON_CHAIN)
                 .customName(Component.text("Chain Spawner", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false))
                 .set(Tool.TOOL_NAME_TAG, "chain")
                 .build();

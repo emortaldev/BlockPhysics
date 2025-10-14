@@ -1,10 +1,6 @@
 package dev.emortal.objects;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.Constraint;
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import dev.emortal.MinecraftPhysics;
 import net.minestom.server.entity.Entity;
@@ -20,7 +16,7 @@ import static dev.emortal.utils.CoordinateUtils.*;
 public abstract class MinecraftPhysicsObject {
 
     private final List<Integer> relatedBodies = new CopyOnWriteArrayList<>();
-    private final List<Constraint> constraints = new CopyOnWriteArrayList<>();
+    private final List<TwoBodyConstraintRef> constraints = new CopyOnWriteArrayList<>();
 
     private final @NotNull MinecraftPhysics mcPhysics;
     private final @NotNull BodyCreationSettings bodySettings;
@@ -47,17 +43,17 @@ public abstract class MinecraftPhysicsObject {
         this.relatedBodies.add(related.getId());
     }
 
-    public void addRelatedConstraint(Constraint related) {
+    public void addRelatedConstraint(TwoBodyConstraintRef related) {
         this.constraints.add(related);
     }
 
-    public void removeRelatedConstraint(Constraint related) {
+    public void removeRelatedConstraint(TwoBodyConstraintRef related) {
         this.constraints.remove(related);
     }
 
     public void destroy() {
-        for (Constraint constraint : constraints) {
-            mcPhysics.removeConstraint(constraint);
+        for (TwoBodyConstraintRef constraint : constraints) {
+            mcPhysics.removeConstraint(constraint.getPtr());
         }
 
         for (int relatedObject : relatedBodies) {

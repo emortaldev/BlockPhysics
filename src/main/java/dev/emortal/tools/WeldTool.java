@@ -6,6 +6,7 @@ import com.github.stephengold.joltjni.SixDofConstraintSettings;
 import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EAxis;
 import dev.emortal.MinecraftPhysics;
+import dev.emortal.objects.MinecraftPhysicsObject;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -50,7 +51,7 @@ public class WeldTool extends Tool {
         if (results.isEmpty()) return;
 
         MinecraftPhysics.RaycastResult result = results.getFirst();
-        Body obj = result.body();
+        Long va = result.va();
 
         // TODO: unsure
 //        for (PhysicsJoint physicsJoint : rigidBody.listJoints()) {
@@ -65,7 +66,10 @@ public class WeldTool extends Tool {
         if (results.isEmpty()) return;
 
         MinecraftPhysics.RaycastResult result = results.getFirst();
-        Body obj = result.body();
+        Long va = result.va();
+        MinecraftPhysicsObject object = physicsHandler.getObjectByVa(va);
+        if (object == null) return;
+        Body obj = object.getBody();
 
         if (firstObject != null) {
             RVec3 firstObjectPos = firstObject.getPosition();

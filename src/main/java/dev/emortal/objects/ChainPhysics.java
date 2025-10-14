@@ -60,7 +60,7 @@ public class ChainPhysics extends MinecraftPhysicsObject {
             meta.setHeight(2);
             meta.setTransformationInterpolationDuration(1);
             meta.setPosRotInterpolationDuration(1);
-            meta.setItemStack(ItemStack.of(Material.CHAIN));
+            meta.setItemStack(ItemStack.of(Material.IRON_CHAIN));
             meta.setScale(new Vec(1.15));
         });
 

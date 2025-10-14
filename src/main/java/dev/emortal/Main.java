@@ -4,19 +4,11 @@ import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
-import dev.emortal.commands.ChainLengthCommand;
-import dev.emortal.commands.ClearCommand;
-import dev.emortal.commands.PerformanceCommand;
-import dev.emortal.commands.PlayerSizeCommand;
-import dev.emortal.commands.TntStrengthCommand;
+import dev.emortal.commands.*;
 import dev.emortal.objects.BlockRigidBody;
 import dev.emortal.objects.MinecraftPhysicsObject;
-import dev.emortal.tools.ChainTool;
-import dev.emortal.tools.DeleteTool;
-import dev.emortal.tools.DiamondLayerTool;
-import dev.emortal.tools.GrabberTool;
-import dev.emortal.tools.PlayerSpawnerTool;
-import dev.emortal.tools.WeldTool;
+import dev.emortal.tools.*;
+import dev.emortal.utils.PolarChainFix;
 import dev.emortal.worldmesh.ChunkMesher;
 import electrostatic4j.snaploader.LibraryInfo;
 import electrostatic4j.snaploader.LoadingCriterion;
@@ -28,6 +20,7 @@ import net.hollowcube.polar.PolarLoader;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.minestom.server.Auth;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.ServerFlag;
 import net.minestom.server.command.CommandManager;
@@ -46,7 +39,6 @@ import net.minestom.server.event.player.PlayerBlockBreakEvent;
 import net.minestom.server.event.player.PlayerBlockPlaceEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
 import net.minestom.server.event.server.ServerTickMonitorEvent;
-import net.minestom.server.extras.MojangAuth;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.batch.AbsoluteBlockBatch;
@@ -62,7 +54,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,7 +74,7 @@ public class Main {
     public static final Map<Long, Integer> CHUNK_MESH_MAP = new ConcurrentHashMap<>();
     public static final Map<Long, BodyCreationSettings> CHUNK_MESH_SETTINGS = new ConcurrentHashMap<>();
 
-    public static void main(String[] args) {
+    void main() {
         LibraryInfo info = new LibraryInfo(null, "joltjni", DirectoryPath.USER_DIR);
         NativeBinaryLoader loader = new NativeBinaryLoader(info);
         NativeDynamicLibrary[] libraries = {
@@ -105,12 +96,9 @@ public class Main {
         System.setProperty("minestom.tps", "20");
         System.setProperty("blockphysics.fps", "60");
 
-        MinecraftServer server = MinecraftServer.init();
-
-        // Use only for local servers!!
-        MinecraftServer.setCompressionThreshold(0);
-        MojangAuth.init();
-        // Use only for local servers!!
+//        MinecraftServer server = MinecraftServer.init(); - Offline mode
+        MinecraftServer server = MinecraftServer.init(new Auth.Online());
+        MinecraftServer.setCompressionThreshold(0); // Use only for local servers!
 
         DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
         var fullbright = MinecraftServer.getDimensionTypeRegistry().register(Key.key("fullbright"), fullbrightDimension);
@@ -123,10 +111,10 @@ public class Main {
         byte[] polarBytes;
         try {
             polarBytes = Files.readAllBytes(Path.of("./emclobby.polar"));
-        } catch (IOException e) {
+            PolarLoader.streamLoad(instance, Channels.newChannel(new ByteArrayInputStream(polarBytes)), polarBytes.length, new PolarChainFix(), null, true).join();
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        PolarLoader.streamLoad(instance, Channels.newChannel(new ByteArrayInputStream(polarBytes)), polarBytes.length, null, null, true).join();
 
         int chunkLoadRadius = 3;
         for (int x = -chunkLoadRadius; x < chunkLoadRadius; x++) {
@@ -250,7 +238,7 @@ public class Main {
                 entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
 
                 instance.scheduler().buildTask(() -> {
-                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), Vec.ZERO, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE);
+                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), 2f, 0, null, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE, List.of());
                     instance.sendGroupedPacket(packet);
                     entity.remove();
 

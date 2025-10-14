@@ -17,7 +17,7 @@ import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.item.component.HeadProfile;
+import net.minestom.server.network.player.ResolvableProfile;
 import net.minestom.server.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
 import org.joml.AxisAngle4f;
@@ -110,7 +110,7 @@ public class PlayerSpawnerTool extends Tool {
     @Override
     public ItemStack getItem() {
         return ItemStack.builder(Material.PLAYER_HEAD)
-                .set(DataComponents.PROFILE, new HeadProfile(player.getSkin()))
+                .set(DataComponents.PROFILE, new ResolvableProfile(player.getSkin()))
                 .customName(Component.text("Player Spawner", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false))
                 .set(Tool.TOOL_NAME_TAG, "playerspawner")
                 .build();

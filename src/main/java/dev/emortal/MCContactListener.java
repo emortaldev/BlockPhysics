@@ -1,6 +1,5 @@
 package dev.emortal;
 
-import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.CustomContactListener;
 import com.github.stephengold.joltjni.Vec3;
 import dev.emortal.objects.MinecraftPhysicsObject;
@@ -18,16 +17,14 @@ public class MCContactListener extends CustomContactListener {
 
     @Override
     public void onContactAdded(long body1Va, long body2Va, long manifoldVa, long settingsVa) {
-        Body bodyByVa = physics.getBodyByVa(body2Va);
-        if (bodyByVa == null) return;
-        MinecraftPhysicsObject objectByBody = physics.getObjectByBody(bodyByVa);
-        if (objectByBody == null) return;
+        MinecraftPhysicsObject object = physics.getObjectByVa(body2Va);
+        if (object == null) return;
 
-        Vec3 linearVelocity = objectByBody.getBody().getLinearVelocity();
+        Vec3 linearVelocity = object.getBody().getLinearVelocity();
 
         double lengthSq = linearVelocity.lengthSq();
         if (lengthSq > 5 * 5) {
-            physics.getInstance().playSound(Sound.sound(SoundEvent.BLOCK_GILDED_BLACKSTONE_HIT, Sound.Source.MASTER, 0.2f, 1f), toVec(bodyByVa.getPosition()));
+            physics.getInstance().playSound(Sound.sound(SoundEvent.BLOCK_GILDED_BLACKSTONE_HIT, Sound.Source.MASTER, 0.2f, 1f), toVec(object.getBody().getPosition()));
         }
     }
 

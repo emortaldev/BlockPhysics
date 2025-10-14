@@ -1,10 +1,6 @@
 package dev.emortal.tools;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.Constraint;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.SixDofConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EAxis;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import dev.emortal.MinecraftPhysics;
@@ -37,10 +33,10 @@ public class GrabberTool extends Tool {
     private final double grabberForce = 10;
 
     private double holdingDistance = 0.0;
-    private @Nullable Body heldObject = null;
+    private @Nullable Long heldObject = null;
     private @Nullable UUID holdingTask = null;
 
-    private final Map<Integer, GrabberJoint> jointMap = new HashMap<>();
+    private final Map<Long, GrabberJoint> jointMap = new HashMap<>();
 
     private final @NotNull Player player;
     private final @NotNull MinecraftPhysics physicsHandler;
@@ -71,15 +67,16 @@ public class GrabberTool extends Tool {
     public void onLeftClick() {
         if (holdingTask == null || heldObject == null) return;
 
-        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(heldObject);
-        if (mcObj != null && mcObj.getEntity() != null) {
+        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByVa(heldObject);
+        if (mcObj == null) return;
+        if (mcObj.getEntity() != null) {
             mcObj.getEntity().setGlowing(false);
         }
 
         player.playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.MASTER, 0.5f, 1.8f), Sound.Emitter.self());
         player.playSound(Sound.sound(SoundEvent.ENTITY_BEE_STING, Sound.Source.MASTER, 0.5f, 2f), Sound.Emitter.self());
 
-        RVec3Arg physicsLoc = heldObject.getPosition();
+        RVec3Arg physicsLoc = mcObj.getBody().getPosition();
 
         player.sendPacket(new ParticlePacket(Particle.REVERSE_PORTAL, toVec(physicsLoc), Pos.ZERO, 2.5f, 20));
 
@@ -92,10 +89,10 @@ public class GrabberTool extends Tool {
         jointSettings.setPosition1(physicsLoc);
         jointSettings.setPosition2(physicsLoc);
 
-        TwoBodyConstraint constraint = jointSettings.create(jointBody, heldObject);
+        TwoBodyConstraint constraint = jointSettings.create(jointBody, mcObj.getBody());
         physicsHandler.addConstraint(constraint);
 
-        jointMap.put(heldObject.getId(), new GrabberJoint(constraint, jointBody.getId()));
+        jointMap.put(heldObject, new GrabberJoint(constraint, jointBody.getId()));
 
         physicsHandler.removeTickTask(holdingTask);
         holdingTask = null;
@@ -105,7 +102,7 @@ public class GrabberTool extends Tool {
     @Override
     public void onRightClick() {
         if (holdingTask != null) {
-            MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(heldObject);
+            MinecraftPhysicsObject mcObj = physicsHandler.getObjectByVa(heldObject);
             if (mcObj != null && mcObj.getEntity() != null) {
                 mcObj.getEntity().setGlowing(false);
             }
@@ -122,36 +119,38 @@ public class GrabberTool extends Tool {
         if (results.isEmpty()) return;
 
         MinecraftPhysics.RaycastResult result = results.getFirst();
-        Body obj = result.body();
+        Long objVa = result.va();
+        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByVa(objVa);
+        if (mcObj == null) return;
+        Body mcBody = mcObj.getBody();
 
-        if (jointMap.containsKey(obj.getId())) { // Remove holding joints if any
-            GrabberJoint joint = jointMap.get(obj.getId());
+        if (jointMap.containsKey(objVa)) { // Remove holding joints if any
+            GrabberJoint joint = jointMap.get(objVa);
             physicsHandler.getBodyInterface().removeBody(joint.bodyId());
             physicsHandler.removeConstraint(joint.constraint());
 
-            jointMap.remove(obj.getId());
+            jointMap.remove(objVa);
         }
 
         player.playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.MASTER, 0.5f, 2f), Sound.Emitter.self());
 
-        heldObject = obj;
+        heldObject = objVa;
 
-        holdingDistance = player.getPosition().distance(toVec(obj.getPosition()));
+        holdingDistance = player.getPosition().distance(toVec(mcBody.getPosition()));
 
-        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
-        if (mcObj != null && mcObj.getEntity() != null) {
+        if (mcObj.getEntity() != null) {
             mcObj.getEntity().setGlowing(true);
         }
 
         holdingTask = physicsHandler.addTickTask(() -> {
-            physicsHandler.getBodyInterface().activateBody(obj.getId());
+            physicsHandler.getBodyInterface().activateBody(mcBody.getId());
 
-            RVec3 physicsVec = obj.getPosition();
+            RVec3 physicsVec = mcBody.getPosition();
 
             Vec wantedPos = player.getPosition().add(0, player.getEyeHeight(), 0).add(player.getPosition().direction().mul(holdingDistance)).asVec();
             Vec diff = wantedPos.sub(toVec(physicsVec)).asVec();
 
-            obj.setLinearVelocity(toVec3(diff.mul(grabberForce)));
+            mcBody.setLinearVelocity(toVec3(diff.mul(grabberForce)));
         });
     }
 

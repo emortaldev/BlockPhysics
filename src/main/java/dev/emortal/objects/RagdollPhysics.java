@@ -1,12 +1,6 @@
 package dev.emortal.objects;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BoxShape;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.SixDofConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EAxis;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
@@ -24,7 +18,7 @@ import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.entity.metadata.display.ItemDisplayMeta;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.item.component.HeadProfile;
+import net.minestom.server.network.player.ResolvableProfile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -124,7 +118,7 @@ public class RagdollPhysics extends MinecraftPhysicsObject {
             meta.setItemStack(
                     ItemStack.builder(Material.PLAYER_HEAD)
                             .itemModel(this.part.getCustomModelData())
-                            .set(DataComponents.PROFILE, new HeadProfile(this.playerSkin))
+                            .set(DataComponents.PROFILE, new ResolvableProfile(this.playerSkin))
                             .customModelData(List.of(), List.of(), List.of("physics"), List.of())
                             .build()
             );

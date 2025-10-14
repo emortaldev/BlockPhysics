@@ -1,6 +1,5 @@
 package dev.emortal.tools;
 
-import com.github.stephengold.joltjni.Body;
 import dev.emortal.MinecraftPhysics;
 import dev.emortal.objects.MinecraftPhysicsObject;
 import net.kyori.adventure.sound.Sound;
@@ -42,9 +41,9 @@ public class DeleteTool extends Tool {
         if (results.isEmpty()) return;
 
         MinecraftPhysics.RaycastResult result = results.getFirst();
-        Body obj = result.body();
+        Long obj = result.va();
 
-        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByBody(obj);
+        MinecraftPhysicsObject mcObj = physicsHandler.getObjectByVa(obj);
         if (mcObj != null) {
             player.playSound(Sound.sound(SoundEvent.BLOCK_STONE_BREAK, Sound.Source.MASTER, 0.5f, 0.6f), Sound.Emitter.self());
             mcObj.destroy();

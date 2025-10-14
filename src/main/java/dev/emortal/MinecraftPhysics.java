@@ -1,31 +1,10 @@
 package dev.emortal;
 
-import com.github.stephengold.joltjni.AllHitRayCastBodyCollector;
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.BodyLockRead;
-import com.github.stephengold.joltjni.BroadPhaseCastResult;
-import com.github.stephengold.joltjni.BroadPhaseLayerInterfaceTable;
-import com.github.stephengold.joltjni.Constraint;
-import com.github.stephengold.joltjni.JobSystem;
-import com.github.stephengold.joltjni.JobSystemThreadPool;
-import com.github.stephengold.joltjni.Jolt;
-import com.github.stephengold.joltjni.JoltPhysicsObject;
-import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
-import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
-import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
-import com.github.stephengold.joltjni.PhysicsSystem;
-import com.github.stephengold.joltjni.Plane;
-import com.github.stephengold.joltjni.PlaneShape;
-import com.github.stephengold.joltjni.RayCast;
-import com.github.stephengold.joltjni.TempAllocator;
-import com.github.stephengold.joltjni.TempAllocatorMalloc;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
+import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstPlane;
 import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
@@ -42,11 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static dev.emortal.utils.CoordinateUtils.lerpVec;
@@ -71,7 +46,7 @@ public class MinecraftPhysics {
     private final AtomicLong lastNanos = new AtomicLong(0);
 
     private final @NotNull List<MinecraftPhysicsObject> objects = new CopyOnWriteArrayList<>();
-    private final @NotNull Map<Body, MinecraftPhysicsObject> objectMap = new ConcurrentHashMap<>();
+    private final @NotNull Map<Long, MinecraftPhysicsObject> objectMap = new ConcurrentHashMap<>();
     private final Instance instance;
 
     public MinecraftPhysics(Instance instance) {
@@ -185,49 +160,43 @@ public class MinecraftPhysics {
         return objects;
     }
 
-    public @Nullable Body getBodyById(int id) {
+    public @Nullable ConstBody getBodyById(int id) {
         return new BodyLockRead(physicsSystem.getBodyLockInterfaceNoLock(), id).getBody();
-    }
-
-    public @Nullable Body getBodyByVa(long va) { // TODO: probably a proper way to do this...
-        for (MinecraftPhysicsObject object : objects) {
-            long bodyVa = object.getBody().va();
-            if (bodyVa == va) return object.getBody();
-        }
-        return null;
     }
 
     public void addObject(MinecraftPhysicsObject object) {
         objects.add(object);
-        objectMap.put(object.getBody(), object);
+        objectMap.put(object.getBody().va(), object);
     }
     public void removeObject(MinecraftPhysicsObject object) {
         objects.remove(object);
-        objectMap.remove(object.getBody());
+        objectMap.remove(object.getBody().va());
     }
 
     public void addConstraint(Constraint constraint) {
         physicsSystem.addConstraint(constraint);
         if (constraint instanceof TwoBodyConstraint twoBodyConstraint) {
-            MinecraftPhysicsObject obj1 = getObjectByBody(twoBodyConstraint.getBody1());
-            if (obj1 != null) obj1.addRelatedConstraint(constraint);
-            MinecraftPhysicsObject obj2 = getObjectByBody(twoBodyConstraint.getBody2());
-            if (obj2 != null) obj2.addRelatedConstraint(constraint);
+            MinecraftPhysicsObject obj1 = getObjectByVa(twoBodyConstraint.getBody1().va());
+            TwoBodyConstraintRef ref = twoBodyConstraint.toRef();
+            if (obj1 != null) obj1.addRelatedConstraint(ref);
+            MinecraftPhysicsObject obj2 = getObjectByVa(twoBodyConstraint.getBody2().va());
+            if (obj2 != null) obj2.addRelatedConstraint(ref);
         }
     }
 
     public void removeConstraint(Constraint constraint) {
         physicsSystem.removeConstraint(constraint);
         if (constraint instanceof TwoBodyConstraint twoBodyConstraint) {
-            MinecraftPhysicsObject obj1 = getObjectByBody(twoBodyConstraint.getBody1());
-            if (obj1 != null) obj1.removeRelatedConstraint(constraint);
-            MinecraftPhysicsObject obj2 = getObjectByBody(twoBodyConstraint.getBody2());
-            if (obj2 != null) obj2.removeRelatedConstraint(constraint);
+            TwoBodyConstraintRef ref = twoBodyConstraint.toRef();
+            MinecraftPhysicsObject obj1 = getObjectByVa(twoBodyConstraint.getBody1().va());
+            if (obj1 != null) obj1.removeRelatedConstraint(ref);
+            MinecraftPhysicsObject obj2 = getObjectByVa(twoBodyConstraint.getBody2().va());
+            if (obj2 != null) obj2.removeRelatedConstraint(ref);
         }
     }
 
-    public @Nullable MinecraftPhysicsObject getObjectByBody(Body physicsObject) {
-        return objectMap.get(physicsObject);
+    public @Nullable MinecraftPhysicsObject getObjectByVa(Long va) {
+        return objectMap.get(va);
     }
 
 //    public List<BroadPhaseCastResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
@@ -238,7 +207,7 @@ public class MinecraftPhysics {
 //        return collector.getHits();
 //    }
 
-    public record RaycastResult(Body body, Vec hitPos) {}
+    public record RaycastResult(Long va, Vec hitPos) {}
 
     public List<RaycastResult> raycastEntity(@NotNull Point startPoint, @NotNull Point direction, double maxDistance) {
         Vec endOffset = direction.asVec().normalize().mul(maxDistance);
@@ -248,12 +217,12 @@ public class MinecraftPhysics {
 
         List<RaycastResult> results = new ArrayList<>();
         for (BroadPhaseCastResult hit : collector.getHits()) {
-            Body body = getBodyById(hit.getBodyId());
+            ConstBody body = getBodyById(hit.getBodyId());
             if (body == null) continue;
-            if (getObjectByBody(body) != null) {
+            if (getObjectByVa(body.targetVa()) != null) {
                 Vec hitPos = lerpVec(startPoint.asVec(), endPoint, hit.getFraction());
 
-                results.add(new RaycastResult(body, hitPos));
+                results.add(new RaycastResult(body.targetVa(), hitPos));
             }
         }
         return results;
