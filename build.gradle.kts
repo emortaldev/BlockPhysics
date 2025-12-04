@@ -14,15 +14,15 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.stephengold:jolt-jni-Windows64:3.4.0")
-    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.4.0:ReleaseSp")
-    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.4.0:ReleaseSp")
+    implementation("com.github.stephengold:jolt-jni-Windows64:3.5.0")
+    runtimeOnly("com.github.stephengold:jolt-jni-Linux64:3.5.0:ReleaseSp")
+    runtimeOnly("com.github.stephengold:jolt-jni-Windows64:3.5.0:ReleaseSp")
     implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
-    runtimeOnly("com.github.oshi:oshi-core:6.9.0")
+    runtimeOnly("com.github.oshi:oshi-core:6.9.1")
 
     implementation("org.joml:joml:1.10.8")
 
-    implementation("net.minestom:minestom:2025.10.11-1.21.10")
+    implementation("net.minestom:minestom:2025.10.31-1.21.10")
 
     implementation("ch.qos.logback:logback-classic:1.5.18")
 
