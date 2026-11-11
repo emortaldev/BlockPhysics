@@ -1,0 +1,1 @@
+{"textures":{"0":"emortalmc:item/player/translucent_pixel","particle":"emortalmc:item/player/translucent_pixel"},"elements":[{"from":[11.5625,13.875,8.5625],"to":[12.125,13.875,9.125],"faces":{"down":{"uv":[0,0,16,16],"tintindex":0,"texture":"#0"}}}]}

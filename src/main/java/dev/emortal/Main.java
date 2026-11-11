@@ -18,11 +18,12 @@ import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
 import net.hollowcube.polar.PolarLoader;
 import net.kyori.adventure.bossbar.BossBar;
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.ShadowColor;
 import net.minestom.server.Auth;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.ServerFlag;
+import net.minestom.server.color.Color;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.coordinate.CoordConversion;
 import net.minestom.server.coordinate.Point;
@@ -47,9 +48,12 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.play.ExplosionPacket;
 import net.minestom.server.particle.Particle;
+import net.minestom.server.property.ServerProperties;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.timer.TaskSchedule;
+import net.minestom.server.utils.WeightedList;
 import net.minestom.server.world.DimensionType;
+import net.minestom.server.world.attribute.EnvironmentAttribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,21 +104,35 @@ public class Main {
         MinecraftServer server = MinecraftServer.init(new Auth.Online());
         MinecraftServer.setCompressionThreshold(0); // Use only for local servers!
 
-        DimensionType fullbrightDimension = DimensionType.builder().ambientLight(1f).build();
-        var fullbright = MinecraftServer.getDimensionTypeRegistry().register(Key.key("fullbright"), fullbrightDimension);
+        DimensionType overworld = MinecraftServer.getDimensionTypeRegistry().get(DimensionType.OVERWORLD);
+
+        DimensionType dimensionTypeFB = DimensionType.builder()
+                .timelines(overworld.timelines())
+                .setAttribute(EnvironmentAttribute.CLOUD_COLOR, ShadowColor.fromHexString("#ffffffcc"))
+                .setAttribute(EnvironmentAttribute.FOG_COLOR, new Color(0xc0d8ff))
+                .setAttribute(EnvironmentAttribute.SKY_COLOR, new Color(0x78a7ff))
+                .setAttribute(EnvironmentAttribute.CLOUD_HEIGHT, 110f)
+                .setAttribute(EnvironmentAttribute.AMBIENT_LIGHT_COLOR, NamedTextColor.WHITE)
+                .defaultClock(overworld.defaultClock())
+                .ambientLight(1f)
+                .build();
+
+        var fullbright = MinecraftServer.getDimensionTypeRegistry().register("emortalmc:fullbright", dimensionTypeFB);
 
         InstanceContainer instance = MinecraftServer.getInstanceManager().createInstanceContainer(fullbright);
         instance.enableAutoChunkLoad(true);
 
+        instance.setGenerator(gen -> gen.modifier().fillHeight(50, 51, Block.GRASS_BLOCK));
+
         MinecraftPhysics physicsHandler = new MinecraftPhysics(instance);
 
-        byte[] polarBytes;
-        try {
-            polarBytes = Files.readAllBytes(Path.of("./emclobby.polar"));
-            PolarLoader.streamLoad(instance, Channels.newChannel(new ByteArrayInputStream(polarBytes)), polarBytes.length, new PolarChainFix(), null, true).join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+//        byte[] polarBytes;
+//        try {
+//            polarBytes = Files.readAllBytes(Path.of("./emclobby.polar"));
+//            PolarLoader.streamLoad(instance, Channels.newChannel(new ByteArrayInputStream(polarBytes)), polarBytes.length, new PolarChainFix(), null, true).join();
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
 
         int chunkLoadRadius = 3;
         for (int x = -chunkLoadRadius; x < chunkLoadRadius; x++) {
@@ -127,8 +145,7 @@ public class Main {
             }
         }
 
-        instance.setTimeSynchronizationTicks(0);
-        instance.setTimeRate(0);
+        instance.defaultClock().pause();
 
         BossBar bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
         BossBar bossBar2 = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
@@ -238,7 +255,7 @@ public class Main {
                 entity.setInstance(instance, e.getBlockPosition().add(0.5, 0, 0.5));
 
                 instance.scheduler().buildTask(() -> {
-                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), 2f, 0, null, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE, List.of());
+                    ExplosionPacket packet = new ExplosionPacket(entity.getPosition(), 2f, 0, null, Particle.EXPLOSION_EMITTER, SoundEvent.ENTITY_GENERIC_EXPLODE, WeightedList.of(), true);
                     instance.sendGroupedPacket(packet);
                     entity.remove();
 
@@ -259,7 +276,7 @@ public class Main {
                         body.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
                     }
 
-                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().isAir() && !block.block().compare(Block.GRASS_BLOCK));
+                    List<WorldBlock> nearbyBlocks = SphereUtil.getNearbyBlocks(blockPos.add(0.5), BLOCKS_IN_SPHERE, instance, block -> !block.block().air() && !block.block().compare(Block.GRASS_BLOCK));
                     AbsoluteBlockBatch batch = new AbsoluteBlockBatch();
                     for (WorldBlock nearbyBlock : nearbyBlocks) {
                         var cube = new BlockRigidBody(physicsHandler, toRVec3(nearbyBlock.position()), new Vec(0.5), true, nearbyBlock.block());
@@ -274,14 +291,14 @@ public class Main {
                         cubeBody.setAngularVelocity(toVec3(velocity)); // probably completely wrong but it looks nice
                         batch.setBlock(nearbyBlock.position(), Block.AIR);
                     }
-                    batch.apply(instance, () -> {
+                    batch.apply(instance, _ -> {
                         for (int x = -1; x <= 1; x++) {
                             for (int z = -1; z <= 1; z++) {
                                 refreshChunk(physicsHandler, instance.getChunkAt(blockPos.add(x * Chunk.CHUNK_SIZE_X, 0, z * Chunk.CHUNK_SIZE_Z)));
                             }
                         }
                     });
-                }).delay(TaskSchedule.tick(3 * ServerFlag.SERVER_TICKS_PER_SECOND)).schedule();
+                }).delay(TaskSchedule.tick(3 * ServerProperties.SERVER_TICKS_PER_SECOND.get())).schedule();
             }
 
             if (!e.isCancelled()) {
@@ -300,7 +317,7 @@ public class Main {
         commandManager.register(new PlayerSizeCommand());
         commandManager.register(new TntStrengthCommand());
 
-        server.start("0.0.0.0", 25565);
+        server.start("0.0.0.0", 25567);
     }
 
     public static void refreshChunk(MinecraftPhysics physics, Chunk chunk) {

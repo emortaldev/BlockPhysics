@@ -87,10 +87,10 @@ public class ChunkMesher {
     private static @Nullable List<Face> getFaces(Chunk chunk, int x, int y, int z){
         Block block = chunk.getBlock(x, y, z, Block.Getter.Condition.TYPE);
 
-        if (block.isAir() || block.isLiquid()) return null;
+        if (block.air() || block.liquid()) return null;
         List<Face> faces = new ArrayList<>();
 
-        Shape shape = block.registry().collisionShape();
+        Shape shape = block.collisionShape();
         Point relStart = shape.relativeStart();
         Point relEnd = shape.relativeEnd();
 
@@ -128,9 +128,9 @@ public class ChunkMesher {
     }
 
     private static boolean isFull(Block block) {
-        if (block.isAir() || block.isLiquid()) return false;
+        if (block.air() || block.liquid()) return false;
 
-        Shape shape = block.registry().collisionShape();
+        Shape shape = block.collisionShape();
         Point relStart = shape.relativeStart();
         Point relEnd = shape.relativeEnd();
 

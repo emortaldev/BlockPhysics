@@ -4,8 +4,9 @@ import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import dev.emortal.MinecraftPhysics;
-import dev.emortal.PlayerDisplayPart;
+import dev.emortal.playermodel.SkinLook;
 import dev.emortal.objects.MinecraftPhysicsObject;
+import dev.emortal.objects.RagdollPart;
 import dev.emortal.objects.RagdollPhysics;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
@@ -15,14 +16,17 @@ import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Player;
+import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.player.ResolvableProfile;
 import net.minestom.server.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static dev.emortal.commands.PlayerSizeCommand.PLAYER_SIZE;
@@ -33,10 +37,24 @@ public class PlayerSpawnerTool extends Tool {
 
     private final @NotNull Player player;
     private final @NotNull MinecraftPhysics physicsHandler;
+    private @Nullable PlayerSkin lookSkin;
+    private @Nullable CompletableFuture<@Nullable SkinLook> look;
     public PlayerSpawnerTool(@NotNull Player player, @NotNull MinecraftPhysics physicsHandler) {
         super(player, "playerspawner");
         this.player = player;
         this.physicsHandler = physicsHandler;
+    }
+
+    /**
+     * Fetches the skin once and reuses it for every ragdoll, refetching only if the player's skin changes
+     */
+    private CompletableFuture<@Nullable SkinLook> getLook() {
+        PlayerSkin skin = player.getSkin();
+        if (look == null || look.isCompletedExceptionally() || skin != lookSkin) {
+            lookSkin = skin;
+            look = skin != null ? SkinLook.fromSkin(skin) : SkinLook.ofUsername(player.getUsername());
+        }
+        return look;
     }
 
 
@@ -88,14 +106,15 @@ public class PlayerSpawnerTool extends Tool {
         double yawRad = Math.toRadians(yaw);
         Quaternionf yawQuat = new Quaternionf(new AxisAngle4f((float) yawRad, 0, 1, 0));
         Quat yawQuat2 = new Quat(yawQuat.x(), yawQuat.y(), yawQuat.z(), yawQuat.w());
+        CompletableFuture<@Nullable SkinLook> look = getLook();
 
-        MinecraftPhysicsObject torso = new RagdollPhysics(physicsHandler, player,null, PlayerDisplayPart.TORSO, toRVec3(startPos), yawQuat2, torsoSize);
+        MinecraftPhysicsObject torso = new RagdollPhysics(physicsHandler, look, null, RagdollPart.TORSO, toRVec3(startPos), yawQuat2, torsoSize);
         Body torsoBody = torso.getBody();
-        MinecraftPhysicsObject head = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.HEAD, toRVec3(startPos.add(new Vec(0,  torsoSize.y() * 2, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, headSize);
-        MinecraftPhysicsObject rightArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_ARM, toRVec3(startPos.add(new Vec((torsoSize.x() / 1.35) * 2, 0, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
-        MinecraftPhysicsObject leftArm = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_ARM, toRVec3(startPos.add(new Vec((torsoSize.x() / 1.35) * -2, 0, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
-        MinecraftPhysicsObject rightLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.RIGHT_LEG, toRVec3(startPos.add(new Vec(0.13, -0.72, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
-        MinecraftPhysicsObject leftLeg = new RagdollPhysics(physicsHandler, player, torsoBody, PlayerDisplayPart.LEFT_LEG, toRVec3(startPos.add(new Vec(-0.13, -0.72, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
+        MinecraftPhysicsObject head = new RagdollPhysics(physicsHandler, look, torsoBody, RagdollPart.HEAD, toRVec3(startPos.add(new Vec(0,  torsoSize.y() * 2, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, headSize);
+        MinecraftPhysicsObject rightArm = new RagdollPhysics(physicsHandler, look, torsoBody, RagdollPart.RIGHT_ARM, toRVec3(startPos.add(new Vec((torsoSize.x() / 1.35) * 2, 0, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
+        MinecraftPhysicsObject leftArm = new RagdollPhysics(physicsHandler, look, torsoBody, RagdollPart.LEFT_ARM, toRVec3(startPos.add(new Vec((torsoSize.x() / 1.35) * -2, 0, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
+        MinecraftPhysicsObject rightLeg = new RagdollPhysics(physicsHandler, look, torsoBody, RagdollPart.RIGHT_LEG, toRVec3(startPos.add(new Vec(0.13, -0.72, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
+        MinecraftPhysicsObject leftLeg = new RagdollPhysics(physicsHandler, look, torsoBody, RagdollPart.LEFT_LEG, toRVec3(startPos.add(new Vec(-0.13, -0.72, 0).rotateAroundY(yawRad).mul(PLAYER_SIZE))), yawQuat2, limbSize);
 
         torso.setInstance();
         head.setInstance();
